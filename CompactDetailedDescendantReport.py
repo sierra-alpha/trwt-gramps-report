@@ -125,17 +125,14 @@ class CompactDetailedDescendantReport(Report):
         numbering     - The descendancy numbering system to be utilized.
         desref        - Whether to add descendant references in child list.
         incnames      - Whether to include other names.
-        # incsrcnotes   - Whether to include source notes in the Endnotes
-                            section. Only works if Include sources is selected.
-        incmates      - Whether to include information about spouses
-        incattrs      - Whether to include attributes
+        # incattrs      - Whether to include attributes
                             from the start-person to each descendant.
         incssign      - Whether to include a sign ('+') before the
                             descendant number in the child-list
                             to indicate a child has succession.
         pid           - The Gramps ID of the center person for the report.
         name_format   - Preferred format to display names
-        incmateref    - Whether to print mate information or reference
+        # incmateref    - Whether to print mate information or reference
         incl_private  - Whether to include private data
         living_people - How to handle living people
         years_past_death - Consider as living this many years after death
@@ -172,8 +169,6 @@ class CompactDetailedDescendantReport(Report):
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
         self.inc_sources = get_value("incsources")
-        self.inc_srcnotes = get_value("incsrcnotes")
-        self.inc_mates = get_value("incmates")
         self.inc_attrs = get_value("incattrs")
         self.inc_ssign = get_value("incssign")
         self.inc_materef = get_value("incmateref")
@@ -385,7 +380,7 @@ class CompactDetailedDescendantReport(Report):
                 self.bibli,
                 self._db,
                 self.doc,
-                printnotes=self.inc_srcnotes,
+                printnotes=False,
                 elocale=self._locale,
             )
 
@@ -462,14 +457,11 @@ class CompactDetailedDescendantReport(Report):
         self.write_person_info(person)
 
         if (
-            self.inc_mates
-            or self.listchildren
+            self.listchildren
             or self.inc_attrs
         ):
             for family_handle in person.get_family_handle_list():
                 family = self._db.get_family_from_handle(family_handle)
-                if self.inc_mates:
-                    self.__write_mate(person, family)
                 if self.listchildren:
                     self.__write_children(family)
                 first = True
@@ -966,10 +958,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
 
-        incmates = BooleanOption(_("Include spouses"), False)
-        incmates.set_help(_("Whether to include detailed spouse information."))
-        add_option("incmates", incmates)
-
         incmateref = BooleanOption(_("Include spouse reference"), False)
         incmateref.set_help(_("Whether to include reference to spouse."))
         add_option("incmateref", incmateref)
@@ -981,15 +969,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         incsources = BooleanOption(_("Include sources"), False)
         incsources.set_help(_("Whether to include source references."))
         add_option("incsources", incsources)
-
-        incsrcnotes = BooleanOption(_("Include sources notes"), False)
-        incsrcnotes.set_help(
-            _(
-                "Whether to include source notes in the "
-                "Endnotes section. Only works if Include sources is selected."
-            )
-        )
-        add_option("incsrcnotes", incsrcnotes)
 
         incattrs = BooleanOption(_("Include attributes"), False)
         incattrs.set_help(_("Whether to include attributes."))
