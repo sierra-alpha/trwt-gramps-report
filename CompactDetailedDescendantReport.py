@@ -123,7 +123,6 @@ class CompactDetailedDescendantReport(Report):
         repdate       - Whether to replace missing Dates with ___________.
         computeage    - Whether to compute age.
         numbering     - The descendancy numbering system to be utilized.
-        desref        - Whether to add descendant references in child list.
         incnames      - Whether to include other names.
         incssign      - Whether to include a sign ('+') before the
                             descendant number in the child-list
@@ -162,7 +161,6 @@ class CompactDetailedDescendantReport(Report):
         blankdate = get_value("repdate")
         self.calcageflag = get_value("computeage")
         self.numbering = get_value("numbering")
-        self.childref = get_value("desref")
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
         self.inc_sources = get_value("incsources")
@@ -354,9 +352,6 @@ class CompactDetailedDescendantReport(Report):
                 mark = IndexMark(text, INDEX_TYPE_TOC, 2)
                 self.doc.write_text(text, mark)
                 self.doc.end_paragraph()
-                if self.childref:
-                    self.prev_gen_handles = self.gen_handles.copy()
-                    self.gen_handles.clear()
                 for key in gen_keys:
                     person_handle = self.map[key]
                     self.gen_handles[person_handle] = key
@@ -622,10 +617,6 @@ class CompactDetailedDescendantReport(Report):
             if not child_name:
                 child_name = self._("Unknown")
             child_mark = utils.get_person_mark(self._db, child)
-
-            if self.childref and self.prev_gen_handles.get(child_handle):
-                value = str(self.prev_gen_handles.get(child_handle))
-                child_name += " [%s]" % value
 
             if self.inc_ssign:
                 prefix = " "
@@ -893,10 +884,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc = BooleanOption(_("Include children"), True)
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
-
-        desref = BooleanOption(_("Include descendant reference in child list"), True)
-        desref.set_help(_("Whether to add descendant references in child list."))
-        add_option("desref", desref)
 
         incsources = BooleanOption(_("Include sources"), False)
         incsources.set_help(_("Whether to include source references."))
