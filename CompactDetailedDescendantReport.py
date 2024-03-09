@@ -118,7 +118,6 @@ class CompactDetailedDescendantReport(Report):
         pagebgg       - Whether to include page breaks between generations.
         pageben       - Whether to include page break before End Notes.
         listc         - Whether to list children.
-        # incnotes      - Whether to include notes.
         usecall       - Whether to use the call name as the first name.
         repplace      - Whether to replace missing Places with ___________.
         repdate       - Whether to replace missing Dates with ___________.
@@ -169,7 +168,6 @@ class CompactDetailedDescendantReport(Report):
         self.pgbrk = get_value("pagebbg")
         self.pgbrkenotes = get_value("pageben")
         self.listchildren = get_value("listc")
-        self.inc_notes = get_value("incnotes")
         use_call = get_value("usecall")
         blankplace = get_value("repplace")
         blankdate = get_value("repdate")
@@ -442,7 +440,7 @@ class CompactDetailedDescendantReport(Report):
             index -= 1
 
     def write_person(self, key):
-        """Output birth, death, parentage, marriage and notes information"""
+        """Output birth, death, parentage, marriage information"""
 
         person_handle = self.map[key]
         person = self._db.get_person_from_handle(person_handle)
@@ -479,7 +477,6 @@ class CompactDetailedDescendantReport(Report):
         if (
             self.inc_mates
             or self.listchildren
-            or self.inc_notes
             or self.inc_events
             or self.inc_attrs
         ):
@@ -489,8 +486,6 @@ class CompactDetailedDescendantReport(Report):
                     self.__write_mate(person, family)
                 if self.listchildren:
                     self.__write_children(family)
-                if self.inc_notes:
-                    self.__write_family_notes(family)
                 first = True
                 if self.inc_events:
                     first = self.__write_family_events(family)
@@ -552,22 +547,6 @@ class CompactDetailedDescendantReport(Report):
             self.doc.write_text_citation(text)
 
         self.doc.end_paragraph()
-
-        if self.inc_notes:
-            # if the event or event reference has a note attached to it,
-            # get the text and format it correctly
-            notelist = event.get_note_list()[
-                :
-            ]  # we don't want to modify cached original
-            notelist.extend(event_ref.get_note_list())
-            for notehandle in notelist:
-                note = self._db.get_note_from_handle(notehandle)
-                self.doc.write_styled_note(
-                    note.get_styledtext(),
-                    note.get_format(),
-                    "DDR-MoreDetails",
-                    contains_html=(note.get_type() == NoteType.HTML_CODE),
-                )
 
     def __write_parents(self, person):
         """write out the main parents of a person"""
@@ -754,25 +733,25 @@ class CompactDetailedDescendantReport(Report):
                 )
             self.doc.end_paragraph()
 
-    def __write_family_notes(self, family):
-        """
-        Write the notes for the given family.
-        """
-        notelist = family.get_note_list()
-        if len(notelist) > 0:
-            mother_name, father_name = self.__get_mate_names(family)
+    # def __write_family_notes(self, family):
+    #     """
+    #     Write the notes for the given family.
+    #     """
+    #     notelist = family.get_note_list()
+    #     if len(notelist) > 0:
+    #         mother_name, father_name = self.__get_mate_names(family)
 
-            self.doc.start_paragraph("DDR-NoteHeader")
-            self.doc.write_text(
-                self._("Notes for %(mother_name)s and %(father_name)s:")
-                % {"mother_name": mother_name, "father_name": father_name}
-            )
-            self.doc.end_paragraph()
-            for notehandle in notelist:
-                note = self._db.get_note_from_handle(notehandle)
-                self.doc.write_styled_note(
-                    note.get_styledtext(), note.get_format(), "DDR-Entry"
-                )
+    #         self.doc.start_paragraph("DDR-NoteHeader")
+    #         self.doc.write_text(
+    #             self._("Notes for %(mother_name)s and %(father_name)s:")
+    #             % {"mother_name": mother_name, "father_name": father_name}
+    #         )
+    #         self.doc.end_paragraph()
+    #         for notehandle in notelist:
+    #             note = self._db.get_note_from_handle(notehandle)
+    #             self.doc.write_styled_note(
+    #                 note.get_styledtext(), note.get_format(), "DDR-Entry"
+    #             )
 
     def __write_family_events(self, family):
         """
@@ -823,16 +802,6 @@ class CompactDetailedDescendantReport(Report):
             self.doc.write_text_citation(text)
             self.doc.end_paragraph()
 
-            if self.inc_notes:
-                # if the attr or attr reference has a note attached to it,
-                # get the text and format it correctly
-                notelist = attr.get_note_list()
-                for notehandle in notelist:
-                    note = self._db.get_note_from_handle(notehandle)
-                    self.doc.write_styled_note(
-                        note.get_styledtext(), note.get_format(), "DDR-MoreDetails"
-                    )
-
     def write_person_info(self, person):
         """write out all the person's information"""
         name = self._name_display.display(person)
@@ -876,21 +845,6 @@ class CompactDetailedDescendantReport(Report):
             self.__write_parents(person)
         self.write_marriage(person)
         self.doc.end_paragraph()
-
-        notelist = person.get_note_list()
-        if len(notelist) > 0 and self.inc_notes:
-            self.doc.start_paragraph("DDR-NoteHeader")
-            # feature request 2356: avoid genitive form
-            self.doc.write_text(self._("Notes for %s") % name)
-            self.doc.end_paragraph()
-            for notehandle in notelist:
-                note = self._db.get_note_from_handle(notehandle)
-                self.doc.write_styled_note(
-                    note.get_styledtext(),
-                    note.get_format(),
-                    "DDR-Entry",
-                    contains_html=(note.get_type() == NoteType.HTML_CODE),
-                )
 
         first = True
         if self.inc_names:
@@ -1116,10 +1070,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         add_option("incphotos", incphotos)
 
         add_option = partial(menu.add_option, _("Include (2)"))
-
-        incnotes = BooleanOption(_("Include notes"), True)
-        incnotes.set_help(_("Whether to include notes."))
-        add_option("incnotes", incnotes)
 
         incsources = BooleanOption(_("Include sources"), False)
         incsources.set_help(_("Whether to include source references."))
