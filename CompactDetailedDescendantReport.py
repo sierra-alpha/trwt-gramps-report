@@ -124,15 +124,12 @@ class CompactDetailedDescendantReport(Report):
         computeage    - Whether to compute age.
         numbering     - The descendancy numbering system to be utilized.
         desref        - Whether to add descendant references in child list.
-        # incphotos     - Whether to include images.
         incnames      - Whether to include other names.
-        # incevents     - Whether to include events.
         # incaddresses  - Whether to include addresses.
         # incsrcnotes   - Whether to include source notes in the Endnotes
                             section. Only works if Include sources is selected.
         incmates      - Whether to include information about spouses
         incattrs      - Whether to include attributes
-        # incpaths      - Whether to include the path of descendancy
                             from the start-person to each descendant.
         incssign      - Whether to include a sign ('+') before the
                             descendant number in the child-list
@@ -173,16 +170,13 @@ class CompactDetailedDescendantReport(Report):
         self.calcageflag = get_value("computeage")
         self.numbering = get_value("numbering")
         self.childref = get_value("desref")
-        self.addimages = get_value("incphotos")
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
-        self.inc_events = get_value("incevents")
         self.inc_addr = get_value("incaddresses")
         self.inc_sources = get_value("incsources")
         self.inc_srcnotes = get_value("incsrcnotes")
         self.inc_mates = get_value("incmates")
         self.inc_attrs = get_value("incattrs")
-        self.inc_paths = get_value("incpaths")
         self.inc_ssign = get_value("incssign")
         self.inc_materef = get_value("incmateref")
 
@@ -465,9 +459,6 @@ class CompactDetailedDescendantReport(Report):
             self.doc.write_text_citation("%s. " % self.endnotes(person))
         self.doc.end_bold()
 
-        if self.inc_paths:
-            self.write_path(person)
-
         self.doc.end_paragraph()
 
         self.write_person_info(person)
@@ -475,7 +466,6 @@ class CompactDetailedDescendantReport(Report):
         if (
             self.inc_mates
             or self.listchildren
-            or self.inc_events
             or self.inc_attrs
         ):
             for family_handle in person.get_family_handle_list():
@@ -485,8 +475,6 @@ class CompactDetailedDescendantReport(Report):
                 if self.listchildren:
                     self.__write_children(family)
                 first = True
-                if self.inc_events:
-                    first = self.__write_family_events(family)
                 if self.inc_attrs:
                     self.__write_family_attrs(family, first)
 
@@ -731,26 +719,6 @@ class CompactDetailedDescendantReport(Report):
                 )
             self.doc.end_paragraph()
 
-    # def __write_family_notes(self, family):
-    #     """
-    #     Write the notes for the given family.
-    #     """
-    #     notelist = family.get_note_list()
-    #     if len(notelist) > 0:
-    #         mother_name, father_name = self.__get_mate_names(family)
-
-    #         self.doc.start_paragraph("DDR-NoteHeader")
-    #         self.doc.write_text(
-    #             self._("Notes for %(mother_name)s and %(father_name)s:")
-    #             % {"mother_name": mother_name, "father_name": father_name}
-    #         )
-    #         self.doc.end_paragraph()
-    #         for notehandle in notelist:
-    #             note = self._db.get_note_from_handle(notehandle)
-    #             self.doc.write_styled_note(
-    #                 note.get_styledtext(), note.get_format(), "DDR-Entry"
-    #             )
-
     def __write_family_events(self, family):
         """
         List the events for the given family.
@@ -808,9 +776,6 @@ class CompactDetailedDescendantReport(Report):
         self.__narrator.set_subject(person)
 
         plist = person.get_media_list()
-        if self.addimages and len(plist) > 0:
-            photo = plist[0]
-            utils.insert_image(self._db, self.doc, photo, self._user)
 
         self.doc.start_paragraph("DDR-Entry")
 
@@ -861,18 +826,6 @@ class CompactDetailedDescendantReport(Report):
                     }
                 )
                 self.doc.end_paragraph()
-
-        if self.inc_events:
-            for event_ref in person.get_primary_event_ref_list():
-                if first:
-                    self.doc.start_paragraph("DDR-MoreHeader")
-                    self.doc.write_text(
-                        self._("More about %(person_name)s:") % {"person_name": name}
-                    )
-                    self.doc.end_paragraph()
-                    first = 0
-
-                self.write_event(event_ref)
 
         if self.inc_addr:
             for addr in person.get_address_list():
@@ -1046,19 +999,9 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         incmateref.set_help(_("Whether to include reference to spouse."))
         add_option("incmateref", incmateref)
 
-        incevents = BooleanOption(_("Include events"), False)
-        incevents.set_help(_("Whether to include events."))
-        add_option("incevents", incevents)
-
         desref = BooleanOption(_("Include descendant reference in child list"), True)
         desref.set_help(_("Whether to add descendant references in child list."))
         add_option("desref", desref)
-
-        incphotos = BooleanOption(_("Include Photo/Images from Gallery"), False)
-        incphotos.set_help(_("Whether to include images."))
-        add_option("incphotos", incphotos)
-
-        add_option = partial(menu.add_option, _("Include (2)"))
 
         incsources = BooleanOption(_("Include sources"), False)
         incsources.set_help(_("Whether to include source references."))
@@ -1096,15 +1039,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
             )
         )
         add_option("incssign", incssign)
-
-        incpaths = BooleanOption(_("Include path to start-person"), False)
-        incpaths.set_help(
-            _(
-                "Whether to include the path of descendancy "
-                "from the start-person to each descendant."
-            )
-        )
-        add_option("incpaths", incpaths)
 
         # How to handle missing information
         add_option = partial(menu.add_option, _("Missing information"))
