@@ -122,7 +122,6 @@ class CompactDetailedDescendantReport(Report):
         repplace      - Whether to replace missing Places with ___________.
         repdate       - Whether to replace missing Dates with ___________.
         computeage    - Whether to compute age.
-        # verbose       - Whether to use complete sentences.
         numbering     - The descendancy numbering system to be utilized.
         desref        - Whether to add descendant references in child list.
         # incphotos     - Whether to include images.
@@ -172,7 +171,6 @@ class CompactDetailedDescendantReport(Report):
         blankplace = get_value("repplace")
         blankdate = get_value("repdate")
         self.calcageflag = get_value("computeage")
-        self.verbose = get_value("verbose")
         self.numbering = get_value("numbering")
         self.childref = get_value("desref")
         self.addimages = get_value("incphotos")
@@ -816,9 +814,6 @@ class CompactDetailedDescendantReport(Report):
 
         self.doc.start_paragraph("DDR-Entry")
 
-        if not self.verbose:
-            self.__write_parents(person)
-
         text = self.__narrator.get_born_string()
         if text:
             self.doc.write_text_citation(text)
@@ -841,8 +836,6 @@ class CompactDetailedDescendantReport(Report):
             if text:
                 self.doc.write_text_citation(text)
 
-        if self.verbose:
-            self.__write_parents(person)
         self.write_marriage(person)
         self.doc.end_paragraph()
 
@@ -1028,10 +1021,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         # Content
 
         add_option = partial(menu.add_option, _("Content"))
-
-        verbose = BooleanOption(_("Use complete sentences"), True)
-        verbose.set_help(_("Whether to use complete sentences or succinct language."))
-        add_option("verbose", verbose)
 
         computeage = BooleanOption(_("Compute death age"), True)
         computeage.set_help(_("Whether to compute a person's age at death."))
