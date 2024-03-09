@@ -130,7 +130,6 @@ class CompactDetailedDescendantReport(Report):
                             to indicate a child has succession.
         pid           - The Gramps ID of the center person for the report.
         name_format   - Preferred format to display names
-        # incmateref    - Whether to print mate information or reference
         incl_private  - Whether to include private data
         living_people - How to handle living people
         years_past_death - Consider as living this many years after death
@@ -168,7 +167,6 @@ class CompactDetailedDescendantReport(Report):
         self.inc_names = get_value("incnames")
         self.inc_sources = get_value("incsources")
         self.inc_ssign = get_value("incssign")
-        self.inc_materef = get_value("incmateref")
 
         pid = get_value("pid")
         self.center_person = self._db.get_person_from_gramps_id(pid)
@@ -573,21 +571,8 @@ class CompactDetailedDescendantReport(Report):
             self.doc.write_text_citation(self.endnotes(mate))
             self.doc.end_paragraph()
 
-            if not self.inc_materef:
-                # Don't want to just print reference
-                self.write_person_info(mate)
-            else:
-                # Check to see if we've married a cousin
-                if mate_handle in self.dnumber:
-                    self.doc.start_paragraph("DDR-MoreDetails")
-                    self.doc.write_text_citation(
-                        self._("Ref: %(number)s. %(name)s")
-                        % {"number": self.dnumber[mate_handle], "name": name}
-                    )
-                    self.doc.end_paragraph()
-                else:
-                    self.dmates[mate_handle] = person.get_handle()
-                    self.write_person_info(mate)
+            # Don't want to just print reference
+            self.write_person_info(mate)
 
     def __get_mate_names(self, family):
         """get the names of the parents in a family"""
@@ -908,10 +893,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc = BooleanOption(_("Include children"), True)
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
-
-        incmateref = BooleanOption(_("Include spouse reference"), False)
-        incmateref.set_help(_("Whether to include reference to spouse."))
-        add_option("incmateref", incmateref)
 
         desref = BooleanOption(_("Include descendant reference in child list"), True)
         desref.set_help(_("Whether to add descendant references in child list."))
