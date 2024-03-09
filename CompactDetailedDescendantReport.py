@@ -118,7 +118,6 @@ class CompactDetailedDescendantReport(Report):
         # inc_id        - Whether to include Gramps IDs
         pagebgg       - Whether to include page breaks between generations.
         pageben       - Whether to include page break before End Notes.
-        # fulldates     - Whether to use full dates instead of just year.
         listc         - Whether to list children.
         # list_children_spouses - Whether to list the spouses of the children
         # incnotes      - Whether to include notes.
@@ -171,8 +170,6 @@ class CompactDetailedDescendantReport(Report):
         self.max_generations = get_value("gen")
         self.pgbrk = get_value("pagebbg")
         self.pgbrkenotes = get_value("pageben")
-        # self.fulldate = get_value("fulldates")
-        # use_fulldate = self.fulldate
         self.listchildren = get_value("listc")
         self.list_children_spouses = get_value("listc_spouses")
         self.inc_notes = get_value("incnotes")
@@ -227,11 +224,11 @@ class CompactDetailedDescendantReport(Report):
             self._db,
             verbose=False,
             use_call_name=False,
-            # use_fulldate,
-            empty_date,
-            empty_place,
-            nlocale=self._locale,
+            use_fulldate=False,
+            empty_date=empty_date,
+            empty_place=empty_place,
             place_format=self.place_format,
+            nlocale=self._locale,
             get_endnote_numbers=self.endnotes,
         )
 
@@ -511,10 +508,7 @@ class CompactDetailedDescendantReport(Report):
         text = ""
         event = self._db.get_event_from_handle(event_ref.ref)
 
-        if self.fulldate:
-            date = self._get_date(event.get_date_object())
-        else:
-            date = event.get_date_object().get_year()
+        date = event.get_date_object().get_year()
 
         place = _pd.display_event(self._db, event, self.place_format)
 
@@ -975,10 +969,7 @@ class CompactDetailedDescendantReport(Report):
 
                 text = utils.get_address_str(addr)
 
-                if self.fulldate:
-                    date = self._get_date(addr.get_date_object())
-                else:
-                    date = addr.get_date_object().get_year()
+                date = addr.get_date_object().get_year()
 
                 self.doc.write_text(self._("Address: "))
                 if date:
@@ -1116,10 +1107,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         verbose = BooleanOption(_("Use complete sentences"), True)
         verbose.set_help(_("Whether to use complete sentences or succinct language."))
         add_option("verbose", verbose)
-
-        # fulldates = BooleanOption(_("Use full dates instead of only the year"), True)
-        # fulldates.set_help(_("Whether to use full dates instead of just year."))
-        # add_option("fulldates", fulldates)
 
         computeage = BooleanOption(_("Compute death age"), True)
         computeage.set_help(_("Whether to compute a person's age at death."))
