@@ -118,7 +118,6 @@ class CompactDetailedDescendantReport(Report):
         pagebgg       - Whether to include page breaks between generations.
         pageben       - Whether to include page break before End Notes.
         listc         - Whether to list children.
-        # list_children_spouses - Whether to list the spouses of the children
         # incnotes      - Whether to include notes.
         usecall       - Whether to use the call name as the first name.
         repplace      - Whether to replace missing Places with ___________.
@@ -170,7 +169,6 @@ class CompactDetailedDescendantReport(Report):
         self.pgbrk = get_value("pagebbg")
         self.pgbrkenotes = get_value("pageben")
         self.listchildren = get_value("listc")
-        self.list_children_spouses = get_value("listc_spouses")
         self.inc_notes = get_value("incnotes")
         use_call = get_value("usecall")
         blankplace = get_value("repplace")
@@ -754,23 +752,6 @@ class CompactDetailedDescendantReport(Report):
                     self.__narrator.get_died_string()
                     or self.__narrator.get_buried_string()
                 )
-            # if the list_children_spouses option is selected:
-            if self.list_children_spouses:
-                # get the family of the child that contains the spouse
-                # of the child.  There may be more than one spouse for each
-                # child
-                family_handle_list = child.get_family_handle_list()
-                # for the first spouse, this is true.
-                # For subsequent spouses, make it false
-                is_first_family = True
-                for family_handle in family_handle_list:
-                    child_family = self.database.get_family_from_handle(family_handle)
-                    self.doc.write_text_citation(
-                        self.__narrator.get_married_string(
-                            child_family, is_first_family, self._name_display
-                        )
-                    )
-                    is_first_family = False
             self.doc.end_paragraph()
 
     def __write_family_notes(self, family):
@@ -1113,10 +1094,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc = BooleanOption(_("Include children"), True)
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
-
-        listc_spouses = BooleanOption(_("Include spouses of children"), False)
-        listc_spouses.set_help(_("Whether to list the spouses of the children."))
-        add_option("listc_spouses", listc_spouses)
 
         incmates = BooleanOption(_("Include spouses"), False)
         incmates.set_help(_("Whether to include detailed spouse information."))
