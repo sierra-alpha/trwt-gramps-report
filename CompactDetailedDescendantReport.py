@@ -125,7 +125,6 @@ class CompactDetailedDescendantReport(Report):
         numbering     - The descendancy numbering system to be utilized.
         desref        - Whether to add descendant references in child list.
         incnames      - Whether to include other names.
-        # incaddresses  - Whether to include addresses.
         # incsrcnotes   - Whether to include source notes in the Endnotes
                             section. Only works if Include sources is selected.
         incmates      - Whether to include information about spouses
@@ -172,7 +171,6 @@ class CompactDetailedDescendantReport(Report):
         self.childref = get_value("desref")
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
-        self.inc_addr = get_value("incaddresses")
         self.inc_sources = get_value("incsources")
         self.inc_srcnotes = get_value("incsrcnotes")
         self.inc_mates = get_value("incmates")
@@ -827,29 +825,6 @@ class CompactDetailedDescendantReport(Report):
                 )
                 self.doc.end_paragraph()
 
-        if self.inc_addr:
-            for addr in person.get_address_list():
-                if first:
-                    self.doc.start_paragraph("DDR-MoreHeader")
-                    self.doc.write_text(
-                        self._("More about %(person_name)s:") % {"person_name": name}
-                    )
-                    self.doc.end_paragraph()
-                    first = False
-                self.doc.start_paragraph("DDR-MoreDetails")
-
-                text = utils.get_address_str(addr)
-
-                date = addr.get_date_object().get_year()
-
-                self.doc.write_text(self._("Address: "))
-                if date:
-                    # Translators: needed for Arabic, ignore otherwise
-                    self.doc.write_text(self._("%s, ") % date)
-                self.doc.write_text(text)
-                self.doc.write_text_citation(self.endnotes(addr))
-                self.doc.end_paragraph()
-
         if self.inc_attrs:
             attrs = person.get_attribute_list()
             if first and attrs:
@@ -1019,10 +994,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         incattrs = BooleanOption(_("Include attributes"), False)
         incattrs.set_help(_("Whether to include attributes."))
         add_option("incattrs", incattrs)
-
-        incaddresses = BooleanOption(_("Include addresses"), False)
-        incaddresses.set_help(_("Whether to include addresses."))
-        add_option("incaddresses", incaddresses)
 
         incnames = BooleanOption(_("Include alternative names"), False)
         incnames.set_help(_("Whether to include other names."))
