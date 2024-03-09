@@ -125,8 +125,6 @@ class CompactDetailedDescendantReport(Report):
         numbering     - The descendancy numbering system to be utilized.
         desref        - Whether to add descendant references in child list.
         incnames      - Whether to include other names.
-        # incattrs      - Whether to include attributes
-                            from the start-person to each descendant.
         incssign      - Whether to include a sign ('+') before the
                             descendant number in the child-list
                             to indicate a child has succession.
@@ -169,7 +167,6 @@ class CompactDetailedDescendantReport(Report):
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
         self.inc_sources = get_value("incsources")
-        self.inc_attrs = get_value("incattrs")
         self.inc_ssign = get_value("incssign")
         self.inc_materef = get_value("incmateref")
 
@@ -458,15 +455,11 @@ class CompactDetailedDescendantReport(Report):
 
         if (
             self.listchildren
-            or self.inc_attrs
         ):
             for family_handle in person.get_family_handle_list():
                 family = self._db.get_family_from_handle(family_handle)
                 if self.listchildren:
                     self.__write_children(family)
-                first = True
-                if self.inc_attrs:
-                    self.__write_family_attrs(family, first)
 
     def write_event(self, event_ref):
         """write out the details of an event"""
@@ -501,26 +494,6 @@ class CompactDetailedDescendantReport(Report):
         text = self._("%(str1)s: %(str2)s") % {"str1": self._(event_name), "str2": text}
 
         self.doc.write_text_citation(text)
-
-        if self.inc_attrs:
-            text = ""
-            attr_list = event.get_attribute_list()[
-                :
-            ]  # we don't want to modify cached original
-            attr_list.extend(event_ref.get_attribute_list())
-            for attr in attr_list:
-                if text:
-                    # Translators: needed for Arabic, ignore otherwise
-                    text += self._("; ")
-                attr_name = attr.get_type().type2base()
-                # Translators: needed for French, ignore otherwise
-                text += self._("%(type)s: %(value)s%(endnotes)s") % {
-                    "type": self._(attr_name),
-                    "value": attr.get_value(),
-                    "endnotes": self.endnotes(attr),
-                }
-            text = " " + text
-            self.doc.write_text_citation(text)
 
         self.doc.end_paragraph()
 
@@ -817,28 +790,6 @@ class CompactDetailedDescendantReport(Report):
                 )
                 self.doc.end_paragraph()
 
-        if self.inc_attrs:
-            attrs = person.get_attribute_list()
-            if first and attrs:
-                self.doc.start_paragraph("DDR-MoreHeader")
-                self.doc.write_text(
-                    self._("More about %(person_name)s:") % {"person_name": name}
-                )
-                self.doc.end_paragraph()
-                first = False
-
-            for attr in attrs:
-                self.doc.start_paragraph("DDR-MoreDetails")
-                attr_name = attr.get_type().type2base()
-                # Translators: needed for French, ignore otherwise
-                text = self._("%(type)s: %(value)s%(endnotes)s") % {
-                    "type": self._(attr_name),
-                    "value": attr.get_value(),
-                    "endnotes": self.endnotes(attr),
-                }
-                self.doc.write_text_citation(text)
-                self.doc.end_paragraph()
-
     def endnotes(self, obj):
         """write out any endnotes/footnotes"""
         if not obj or not self.inc_sources:
@@ -969,10 +920,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         incsources = BooleanOption(_("Include sources"), False)
         incsources.set_help(_("Whether to include source references."))
         add_option("incsources", incsources)
-
-        incattrs = BooleanOption(_("Include attributes"), False)
-        incattrs.set_help(_("Whether to include attributes."))
-        add_option("incattrs", incattrs)
 
         incnames = BooleanOption(_("Include alternative names"), False)
         incnames.set_help(_("Whether to include other names."))
