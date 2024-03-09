@@ -163,7 +163,6 @@ class CompactDetailedDescendantReport(Report):
         self.numbering = get_value("numbering")
         self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
-        self.inc_sources = get_value("incsources")
         self.inc_ssign = get_value("incssign")
 
         pid = get_value("pid")
@@ -361,18 +360,6 @@ class CompactDetailedDescendantReport(Report):
                 self.write_person(key)
         else:
             raise AttributeError("no such structure: '%s'" % self.structure)
-
-        if self.inc_sources:
-            if self.pgbrkenotes:
-                self.doc.page_break()
-            # it ignores language set for Note type (use locale)
-            endnotes.write_endnotes(
-                self.bibli,
-                self._db,
-                self.doc,
-                printnotes=False,
-                elocale=self._locale,
-            )
 
     def write_path(self, person):
         """determine the path of the person"""
@@ -768,7 +755,7 @@ class CompactDetailedDescendantReport(Report):
 
     def endnotes(self, obj):
         """write out any endnotes/footnotes"""
-        if not obj or not self.inc_sources:
+        if not obj:
             return ""
 
         txt = endnotes.cite_source(self.bibli, self._db, obj, self._locale)
@@ -885,9 +872,9 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
 
-        incsources = BooleanOption(_("Include sources"), False)
-        incsources.set_help(_("Whether to include source references."))
-        add_option("incsources", incsources)
+        # incsources = BooleanOption(_("Include sources"), False)
+        # incsources.set_help(_("Whether to include source references."))
+        # add_option("incsources", incsources)
 
         incnames = BooleanOption(_("Include alternative names"), False)
         incnames.set_help(_("Whether to include other names."))
