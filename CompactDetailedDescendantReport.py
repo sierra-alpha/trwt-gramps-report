@@ -794,7 +794,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         self.__pid.set_help(_("The center person for the report"))
         add_option("pid", self.__pid)
 
-        numbering = EnumeratedListOption(_("Numbering system"), "Henry")
+        numbering = EnumeratedListOption(_("Numbering system"), "d'Aboville")
         numbering.set_items(
             [
                 ("Henry", _("Henry numbering")),
@@ -907,7 +907,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_font(font)
         para.set_header_level(1)
         para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
         para.set_alignment(PARA_ALIGN_CENTER)
         para.set_description(_("The style used for the title."))
         default_style.add_paragraph_style("CDDR-Title", para)
@@ -918,7 +917,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_font(font)
         para.set_header_level(2)
         para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
         para.set_description(_("The style used for the generation header."))
         default_style.add_paragraph_style("CDDR-Generation", para)
 
@@ -950,48 +948,25 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_font(font)
         para.set(rmargin=0.25)
         para.set_alignment(PARA_ALIGN_RIGHT)
-        para.set_description(_("The style used for the text related to the children."))
+        para.set_description(_("The style used for the children list numbers."))
         default_style.add_paragraph_style("CDDR-ChildListLeftSimple", para)
 
         font = FontStyle()
         font.set(size=10)
         para = ParagraphStyle()
         para.set_font(font)
-        para.set_description(_("The style used for the text related to the children."))
+        para.set_description(_("The style used for the Children list text."))
         default_style.add_paragraph_style("CDDR-ChildListSimple", para)
-
-
-        font = FontStyle()
-        font.set(size=10)
-        para = ParagraphStyle()
-        para.set_font(font)
-        para.set(first_indent=-0.75, lmargin=2.25)
-        para.set_top_margin(0.125)
-        para.set_bottom_margin(0.125)
-        para.set_description(_("The style used for the text related to the children."))
-        default_style.add_paragraph_style("CDDR-ChildList", para)
-
-        font = FontStyle()
-        font.set(face=FONT_SANS_SERIF, size=10, italic=0, bold=1)
-        para = ParagraphStyle()
-        para.set_font(font)
-        para.set(first_indent=0.0, lmargin=1.5)
-        para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
-        para.set_description(_("The style used for the note header."))
-        default_style.add_paragraph_style("CDDR-NoteHeader", para)
 
         para = ParagraphStyle()
         para.set(lmargin=1.5)
         para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
         para.set_description(_("The basic style used for the text display."))
         default_style.add_paragraph_style("CDDR-Entry", para)
 
         para = ParagraphStyle()
         para.set(first_indent=-1.5, lmargin=1.5)
-        para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
+        para.set_top_margin(0.10)
         para.set_description(_("The style used for first level headings."))
         default_style.add_paragraph_style("CDDR-First-Entry", para)
 
@@ -1000,8 +975,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para = ParagraphStyle()
         para.set_font(font)
         para.set(first_indent=0.0, lmargin=1.5)
-        para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
+        para.set_top_margin(0.10)
         para.set_description(_("The style used for second level headings."))
         default_style.add_paragraph_style("CDDR-MoreHeader", para)
 
@@ -1010,8 +984,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para = ParagraphStyle()
         para.set_font(font)
         para.set(first_indent=0.0, lmargin=1.5)
-        para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
+        para.set_top_margin(0.10)
         para.set_description(_("The style used for details."))
         default_style.add_paragraph_style("CDDR-MoreDetails", para)
 
