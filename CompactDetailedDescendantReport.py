@@ -69,10 +69,13 @@ from gramps.gen.plug.docgen import (
     IndexMark,
     FontStyle,
     ParagraphStyle,
+    TableStyle,
+    TableCellStyle,
     FONT_SANS_SERIF,
     FONT_SERIF,
     INDEX_TYPE_TOC,
     PARA_ALIGN_CENTER,
+    PARA_ALIGN_RIGHT,
 )
 from gramps.gen.plug.report import Report, Bibliography
 from gramps.gen.plug.report import endnotes
@@ -332,7 +335,7 @@ class CompactDetailedDescendantReport(Report):
         if not name:
             name = self._("Unknown")
 
-        self.doc.start_paragraph("DDR-Title")
+        self.doc.start_paragraph("CDDR-Title")
 
         # feature request 2356: avoid genitive form
         title = self._("Descendant Report for %(person_name)s") % {"person_name": name}
@@ -346,7 +349,7 @@ class CompactDetailedDescendantReport(Report):
             for generation, gen_keys in enumerate(self.gen_keys):
                 if self.pgbrk and generation > 0:
                     self.doc.page_break()
-                self.doc.start_paragraph("DDR-Generation")
+                self.doc.start_paragraph("CDDR-Generation")
                 text = self._("Generation %d") % (generation + 1)
                 mark = IndexMark(text, INDEX_TYPE_TOC, 2)
                 self.doc.write_text(text, mark)
@@ -414,7 +417,7 @@ class CompactDetailedDescendantReport(Report):
         else:
             self.numbers_printed.append(val)
 
-        self.doc.start_paragraph("DDR-First-Entry", "%s." % val)
+        self.doc.start_paragraph("CDDR-First-Entry", "%s." % val)
 
         name = self._name_display.display(person)
         if not name:
@@ -433,9 +436,7 @@ class CompactDetailedDescendantReport(Report):
 
         self.write_person_info(person)
 
-        if (
-            self.listchildren
-        ):
+        if self.listchildren:
             for family_handle in person.get_family_handle_list():
                 family = self._db.get_family_from_handle(family_handle)
                 if self.listchildren:
@@ -450,7 +451,7 @@ class CompactDetailedDescendantReport(Report):
 
         place = _pd.display_event(self._db, event, self.place_format)
 
-        self.doc.start_paragraph("DDR-MoreDetails")
+        self.doc.start_paragraph("CDDR-MoreDetails")
         event_name = self._get_type(event.get_type())
         if date and place:
             # Translators: needed for Arabic, ignore otherwise
@@ -539,7 +540,7 @@ class CompactDetailedDescendantReport(Report):
         if mate_handle:
             mate = self._db.get_person_from_handle(mate_handle)
 
-            self.doc.start_paragraph("DDR-MoreHeader")
+            self.doc.start_paragraph("CDDR-MoreHeader")
             name = self._name_display.display(mate)
             if not name:
                 name = self._("Unknown")
@@ -589,15 +590,20 @@ class CompactDetailedDescendantReport(Report):
 
         mother_name, father_name = self.__get_mate_names(family)
 
-        self.doc.start_paragraph("DDR-ChildTitle")
+        self.doc.start_paragraph("CDDR-ChildTitle")
         self.doc.write_text(
             self._("Children of %(mother_name)s and %(father_name)s")
             % {"father_name": father_name, "mother_name": mother_name}
         )
         self.doc.end_paragraph()
 
+        self.doc.start_table(
+            format("child-table-{}".format(family.gramps_id)),
+            "CDDR-ChildTable"
+        )
         cnt = 1
         for child_ref in family.get_child_ref_list():
+            self.doc.start_row()
             child_handle = child_ref.ref
             child = self._db.get_person_from_handle(child_handle)
             child_name = self._name_display.display(child)
@@ -605,45 +611,35 @@ class CompactDetailedDescendantReport(Report):
                 child_name = self._("Unknown")
             child_mark = utils.get_person_mark(self._db, child)
 
+            suffix = ""
             if self.inc_ssign:
-                prefix = " "
                 for family_handle in child.get_family_handle_list():
                     family = self._db.get_family_from_handle(family_handle)
                     if family.get_child_ref_list():
-                        prefix = "+ "
+                        suffix = "+ "
                         break
-            else:
-                prefix = ""
 
+            self.doc.start_cell("CDDR-ChildTableCell")
+            self.doc.start_paragraph("CDDR-ChildListLeftSimple")
             if child_handle in self.dnumber:
-                self.doc.start_paragraph(
-                    "DDR-ChildList",
-                    prefix
-                    + str(self.dnumber[child_handle])
-                    + " "
-                    + utils.roman(cnt).lower()
-                    + ".",
+                self.doc.write_text(
+                    suffix + str(self.dnumber[child_handle])
                 )
             else:
-                self.doc.start_paragraph(
-                    "DDR-ChildList", prefix + utils.roman(cnt).lower() + "."
-                )
+                self.doc.write_text(suffix + utils.roman(cnt).lower())
+            self.doc.end_paragraph()
+            self.doc.end_cell()
             cnt += 1
 
-            self.doc.write_text("%s. " % child_name, child_mark)
-            self.__narrator.set_subject(child)
-            self.doc.write_text_citation(
-                self.__narrator.get_born_string()
-                or self.__narrator.get_christened_string()
-                or self.__narrator.get_baptised_string()
-            )
-            # Write Death and/or Burial text only if not probably alive
-            if not probably_alive(child, self.database):
-                self.doc.write_text_citation(
-                    self.__narrator.get_died_string()
-                    or self.__narrator.get_buried_string()
-                )
+            self.doc.start_cell("CDDR-ChildTableCell")
+            self.doc.start_paragraph("CDDR-ChildListSimple")
+            self.doc.write_text("%s." % child_name, child_mark)
             self.doc.end_paragraph()
+            self.doc.end_cell()
+
+            self.doc.end_row()
+
+        self.doc.end_table()
 
     def __write_family_events(self, family):
         """
@@ -657,7 +653,7 @@ class CompactDetailedDescendantReport(Report):
         first = True
         for event_ref in family.get_event_ref_list():
             if first:
-                self.doc.start_paragraph("DDR-MoreHeader")
+                self.doc.start_paragraph("CDDR-MoreHeader")
                 self.doc.write_text(
                     self._("More about %(mother_name)s and %(father_name)s:")
                     % {"mother_name": mother_name, "father_name": father_name}
@@ -676,7 +672,7 @@ class CompactDetailedDescendantReport(Report):
         if first and attrs:
             mother_name, father_name = self.__get_mate_names(family)
 
-            self.doc.start_paragraph("DDR-MoreHeader")
+            self.doc.start_paragraph("CDDR-MoreHeader")
             self.doc.write_text(
                 self._("More about %(mother_name)s and %(father_name)s:")
                 % {"mother_name": mother_name, "father_name": father_name}
@@ -684,7 +680,7 @@ class CompactDetailedDescendantReport(Report):
             self.doc.end_paragraph()
 
         for attr in attrs:
-            self.doc.start_paragraph("DDR-MoreDetails")
+            self.doc.start_paragraph("CDDR-MoreDetails")
             attr_name = self._get_type(attr.get_type())
             text = self._("%(type)s: %(value)s%(endnotes)s") % {
                 "type": self._(attr_name),
@@ -703,7 +699,7 @@ class CompactDetailedDescendantReport(Report):
 
         plist = person.get_media_list()
 
-        self.doc.start_paragraph("DDR-Entry")
+        self.doc.start_paragraph("CDDR-Entry")
 
         text = self.__narrator.get_born_string()
         if text:
@@ -734,13 +730,13 @@ class CompactDetailedDescendantReport(Report):
         if self.inc_names:
             for alt_name in person.get_alternate_names():
                 if first:
-                    self.doc.start_paragraph("DDR-MoreHeader")
+                    self.doc.start_paragraph("CDDR-MoreHeader")
                     self.doc.write_text(
                         self._("More about %(person_name)s:") % {"person_name": name}
                     )
                     self.doc.end_paragraph()
                     first = False
-                self.doc.start_paragraph("DDR-MoreDetails")
+                self.doc.start_paragraph("CDDR-MoreDetails")
                 atype = self._get_type(alt_name.get_type())
                 aname = alt_name.get_regular_name()
                 self.doc.write_text_citation(
@@ -914,7 +910,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_bottom_margin(0.25)
         para.set_alignment(PARA_ALIGN_CENTER)
         para.set_description(_("The style used for the title."))
-        default_style.add_paragraph_style("DDR-Title", para)
+        default_style.add_paragraph_style("CDDR-Title", para)
 
         font = FontStyle()
         font.set(face=FONT_SANS_SERIF, size=14, italic=1)
@@ -924,7 +920,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for the generation header."))
-        default_style.add_paragraph_style("DDR-Generation", para)
+        default_style.add_paragraph_style("CDDR-Generation", para)
 
         font = FontStyle()
         font.set(face=FONT_SANS_SERIF, size=10, italic=0, bold=1)
@@ -934,7 +930,36 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for the children list title."))
-        default_style.add_paragraph_style("DDR-ChildTitle", para)
+        default_style.add_paragraph_style("CDDR-ChildTitle", para)
+
+        table = TableStyle()
+        table.set_width(100)
+        table.set_columns(2)
+        table.set_column_width(0, 25)
+        table.set_column_width(1, 75)
+        table.set_description(_("The style used for the children list table."))
+        default_style.add_table_style("CDDR-ChildTable", table)
+
+        table = TableCellStyle()
+        table.set_description(_("The style used for the children list table cells."))
+        default_style.add_cell_style("CDDR-ChildTableCell", table)
+
+        font = FontStyle()
+        font.set(size=10)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set(rmargin=0.25)
+        para.set_alignment(PARA_ALIGN_RIGHT)
+        para.set_description(_("The style used for the text related to the children."))
+        default_style.add_paragraph_style("CDDR-ChildListLeftSimple", para)
+
+        font = FontStyle()
+        font.set(size=10)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set_description(_("The style used for the text related to the children."))
+        default_style.add_paragraph_style("CDDR-ChildListSimple", para)
+
 
         font = FontStyle()
         font.set(size=10)
@@ -944,7 +969,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.125)
         para.set_bottom_margin(0.125)
         para.set_description(_("The style used for the text related to the children."))
-        default_style.add_paragraph_style("DDR-ChildList", para)
+        default_style.add_paragraph_style("CDDR-ChildList", para)
 
         font = FontStyle()
         font.set(face=FONT_SANS_SERIF, size=10, italic=0, bold=1)
@@ -954,21 +979,21 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for the note header."))
-        default_style.add_paragraph_style("DDR-NoteHeader", para)
+        default_style.add_paragraph_style("CDDR-NoteHeader", para)
 
         para = ParagraphStyle()
         para.set(lmargin=1.5)
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The basic style used for the text display."))
-        default_style.add_paragraph_style("DDR-Entry", para)
+        default_style.add_paragraph_style("CDDR-Entry", para)
 
         para = ParagraphStyle()
         para.set(first_indent=-1.5, lmargin=1.5)
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for first level headings."))
-        default_style.add_paragraph_style("DDR-First-Entry", para)
+        default_style.add_paragraph_style("CDDR-First-Entry", para)
 
         font = FontStyle()
         font.set(size=10, face=FONT_SANS_SERIF, bold=1)
@@ -978,7 +1003,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for second level headings."))
-        default_style.add_paragraph_style("DDR-MoreHeader", para)
+        default_style.add_paragraph_style("CDDR-MoreHeader", para)
 
         font = FontStyle()
         font.set(face=FONT_SERIF, size=10)
@@ -988,6 +1013,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_bottom_margin(0.25)
         para.set_description(_("The style used for details."))
-        default_style.add_paragraph_style("DDR-MoreDetails", para)
+        default_style.add_paragraph_style("CDDR-MoreDetails", para)
 
         endnotes.add_endnote_styles(default_style)
