@@ -927,16 +927,16 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para = ParagraphStyle()
         para.set_font(font)
         para.set_left_margin(1.5)  # in centimeters
-        para.set_top_margin(0.25)
-        para.set_bottom_margin(0.25)
+        para.set_top_margin(0.10)
+        para.set_bottom_margin(0.10)
         para.set_description(_("The style used for the children list title."))
         default_style.add_paragraph_style("CDDR-ChildTitle", para)
 
         table = TableStyle()
         table.set_width(100)
         table.set_columns(2)
-        table.set_column_width(0, 25)
-        table.set_column_width(1, 75)
+        table.set_column_width(0, 35)
+        table.set_column_width(1, 65)
         table.set_description(_("The style used for the children list table."))
         default_style.add_table_style("CDDR-ChildTable", table)
 
