@@ -528,35 +528,6 @@ class CompactDetailedDescendantReport(Report):
                 self.doc.write_text_citation(text, spouse_mark)
                 is_first = False
 
-    def __write_mate(self, person, family):
-        """
-        Write information about the person's spouse/mate.
-        """
-        if person.get_gender() == Person.MALE:
-            mate_handle = family.get_mother_handle()
-        else:
-            mate_handle = family.get_father_handle()
-
-        if mate_handle:
-            mate = self._db.get_person_from_handle(mate_handle)
-
-            self.doc.start_paragraph("CDDR-MoreHeader")
-            name = self._name_display.display(mate)
-            if not name:
-                name = self._("Unknown")
-            mark = utils.get_person_mark(self._db, mate)
-            if family.get_relationship() == FamilyRelType.MARRIED:
-                self.doc.write_text(self._("Spouse: %s") % name, mark)
-            else:
-                self.doc.write_text(self._("Relationship with: %s") % name, mark)
-            if name[-1:] != ".":
-                self.doc.write_text(".")
-            self.doc.write_text_citation(self.endnotes(mate))
-            self.doc.end_paragraph()
-
-            # Don't want to just print reference
-            self.write_person_info(mate)
-
     def __get_mate_names(self, family):
         """get the names of the parents in a family"""
         mother_handle = family.get_mother_handle()
@@ -960,13 +931,13 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
 
         para = ParagraphStyle()
         para.set(lmargin=1.5)
-        para.set_top_margin(0.25)
+        para.set_top_margin(0.10)
         para.set_description(_("The basic style used for the text display."))
         default_style.add_paragraph_style("CDDR-Entry", para)
 
         para = ParagraphStyle()
         para.set(first_indent=-1.5, lmargin=1.5)
-        para.set_top_margin(0.10)
+        para.set_top_margin(0.25)
         para.set_description(_("The style used for first level headings."))
         default_style.add_paragraph_style("CDDR-First-Entry", para)
 
