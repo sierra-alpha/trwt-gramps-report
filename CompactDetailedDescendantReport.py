@@ -98,6 +98,212 @@ HENRY = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 # ------------------------------------------------------------------------
 #
+# PrintDAboville
+#
+# ------------------------------------------------------------------------
+class PrintDAboville:
+    """
+    d'Aboville numbering system
+
+    (according to en.wikipedia.org/Genealogical_numbering_systems
+    his name is spelled "d'Aboville" and not "D'Aboville" but I will
+    leave this class name alone, mainly fixing the translated string,
+    so that it is both accurate and also agrees with the DDR string)
+    """
+
+    def __init__(self):
+        self.num = [0]
+
+    def number(self, level):
+        """Make the current number based upon the current level"""
+        # Set up the array based on the current level
+        while len(self.num) > level:  # We can go from a level 8 to level 2
+            self.num.pop()
+        if len(self.num) < level:
+            self.num.append(0)
+
+        # Increment the current level - initalized with 0
+        self.num[-1] += 1
+
+        # Display
+        return ".".join(map(str, self.num))
+
+
+# ------------------------------------------------------------------------
+#
+# PrintHenry
+#
+# ------------------------------------------------------------------------
+class PrintHenry:
+    """Henry numbering system"""
+
+    def __init__(self, modified=False):
+        self.henry = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        self.modified = modified
+        self.num = [0]
+
+    def number(self, level):
+        """Make the current number based upon the current level"""
+        # Set up the array based on the current level
+        while len(self.num) > level:  # We can go from a level 8 to level 2
+            self.num.pop()
+        if len(self.num) < level:
+            self.num.append(0)
+
+        # Incriment the current level - initalized with 0
+        self.num[-1] += 1
+
+        def strd(inti):
+            """no change needed"""
+            return "(" + str(inti) + ")"
+
+        # Display
+        if self.modified is False:
+            return "".join(
+                map(
+                    lambda x: self.henry[x - 1] if x <= len(self.henry) else strd(x),
+                    self.num,
+                )
+            )
+        else:
+            return "".join(map(lambda x: str(x) if x < 10 else strd(x), self.num))
+
+
+# ------------------------------------------------------------------------
+#
+# Printinfo
+#
+# ------------------------------------------------------------------------
+class Printinfo:
+    """
+    A base class used to help make the individual numbering system classes.
+    This class must first be initialized with set_class_vars
+    """
+
+    def __init__(
+        self,
+        doc,
+        database,
+        numbering,
+        showmarriage,
+        showdivorce,
+        showlifespan,
+        name_display,
+        rlocale,
+        want_ids,
+        pformat,
+    ):
+        # classes
+        self._name_display = name_display
+        self.doc = doc
+        self.database = database
+        self.numbering = numbering
+        # variables
+        self.showmarriage = showmarriage
+        self.showdivorce = showdivorce
+        self.showlifespan = showlifespan
+        self.want_ids = want_ids
+        self._ = rlocale.translation.sgettext  # needed for English
+        self._get_date = rlocale.get_date
+        self.pformat = pformat
+
+    def __date_place(self, event):
+        """return the date and/or place an event happened"""
+        if event:
+            date = self._get_date(event.get_date_object())
+            place_handle = event.get_place_handle()
+            if place_handle:
+                place = _pd.display_event(self.database, event, self.pformat)
+                return "%(event_abbrev)s %(date)s - %(place)s" % {
+                    "event_abbrev": event.type.get_abbreviation(self._),
+                    "date": date,
+                    "place": place,
+                }
+            else:
+                return "%(event_abbrev)s %(date)s" % {
+                    "event_abbrev": event.type.get_abbreviation(self._),
+                    "date": date,
+                }
+        return ""
+
+    def dump_string(self, person, family=None):
+        """generate a descriptive string for a person"""
+        string = ""
+
+        if self.showlifespan:
+            string += self.__date_place(get_birth_or_fallback(self.database, person))
+            tmp = self.__date_place(get_death_or_fallback(self.database, person))
+            if string and tmp:
+                string += self._(", ")  # Arabic OK
+            string += tmp
+
+            if string:
+                string = " (" + string + ")"
+
+        if family and self.showmarriage:
+            tmp = self.__date_place(get_marriage_or_fallback(self.database, family))
+            if tmp:
+                string += self._(", ") + tmp  # Arabic OK
+
+        if family and self.showdivorce:
+            tmp = self.__date_place(get_divorce_or_fallback(self.database, family))
+            if tmp:
+                string += self._(", ") + tmp  # Arabic OK
+
+        if family and self.want_ids:
+            string += " (%s)" % family.get_gramps_id()
+
+        self.doc.write_text(string)
+
+    def print_person(self, level, person):
+        """print the person"""
+        display_num = self.numbering.number(level)
+        self.doc.start_paragraph("DR-Level%d" % min(level, 32), display_num)
+        mark = utils.get_person_mark(self.database, person)
+        self.doc.write_text(self._name_display.display(person), mark)
+        if self.want_ids:
+            self.doc.write_text(" (%s)" % person.get_gramps_id())
+        self.dump_string(person)
+        self.doc.end_paragraph()
+        return display_num
+
+    def print_spouse(self, level, spouse_handle, family_handle):
+        """print the spouse"""
+        # Currently print_spouses is the same for all numbering systems.
+        if spouse_handle:
+            spouse = self.database.get_person_from_handle(spouse_handle)
+            mark = utils.get_person_mark(self.database, spouse)
+            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            name = self._name_display.display(spouse)
+            self.doc.write_text(self._("sp. %(spouse)s") % {"spouse": name}, mark)
+            if self.want_ids:
+                self.doc.write_text(" (%s)" % spouse.get_gramps_id())
+            self.dump_string(spouse, family_handle)
+            self.doc.end_paragraph()
+        else:
+            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            self.doc.write_text(
+                self._("sp. %(spouse)s") % {"spouse": self._("Unknown")}
+            )
+            self.doc.end_paragraph()
+
+    def print_reference(self, level, person, display_num):
+        """print the reference"""
+        # Person and their family have already been printed so
+        # print reference here
+        if person:
+            mark = utils.get_person_mark(self.database, person)
+            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            name = self._name_display.display(person)
+            self.doc.write_text(
+                self._("sp. see %(reference)s: %(spouse)s")
+                % {"reference": display_num, "spouse": name},
+                mark,
+            )
+            self.doc.end_paragraph()
+
+# ------------------------------------------------------------------------
+#
 #
 #
 # ------------------------------------------------------------------------
@@ -135,7 +341,6 @@ class CompactDetailedDescendantReport(Report):
         incl_private  - Whether to include private data
         living_people - How to handle living people
         years_past_death - Consider as living this many years after death
-        structure     - How to structure the report
         """
         Report.__init__(self, database, options, user)
 
@@ -164,7 +369,6 @@ class CompactDetailedDescendantReport(Report):
         blankdate = get_value("repdate")
         self.calcageflag = get_value("computeage")
         self.numbering = get_value("numbering")
-        self.structure = get_value("structure")
         self.inc_names = get_value("incnames")
         self.inc_ssign = get_value("incssign")
 
@@ -194,6 +398,44 @@ class CompactDetailedDescendantReport(Report):
 
         self.place_format = menu.get_option_by_name("place_format").get_value()
 
+        # Initialize the Printinfo class
+        self._showdups = menu.get_option_by_name("dups").get_value()
+        numbering = menu.get_option_by_name("numbering").get_value()
+        # if numbering == "Simple":
+        #     obj = PrintSimple(self._showdups)
+        if numbering == "Henry":
+            obj = PrintHenry()
+        elif numbering == "Modified Henry":
+            obj = PrintHenry(modified=True)
+        elif numbering == "d'Aboville":
+            obj = PrintDAboville()
+        # elif numbering == "de Villiers/Pama":
+        #     obj = PrintVilliers()
+        # elif numbering == "Meurgey de Tupigny":
+        #     obj = PrintMeurgey()
+        else:
+            raise AttributeError("no such numbering: '%s'" % numbering)
+
+        marrs = menu.get_option_by_name("marrs").get_value()
+        divs = menu.get_option_by_name("divs").get_value()
+        lifespan = menu.get_option_by_name("lifespan").get_value()
+
+        stdoptions.run_name_format_option(self, menu)
+
+        pformat = menu.get_option_by_name("place_format").get_value()
+
+        self.obj_print = Printinfo(
+            self.doc,
+            self.database,
+            obj,
+            marrs,
+            divs,
+            lifespan,
+            self._name_display,
+            self._locale,
+            self.want_ids,
+            pformat,
+        )
         self.__narrator = Narrator(
             self._db,
             verbose=False,
@@ -345,24 +587,18 @@ class CompactDetailedDescendantReport(Report):
 
         self.numbers_printed = list()
 
-        if self.structure == "by generation":
-            for generation, gen_keys in enumerate(self.gen_keys):
-                if self.pgbrk and generation > 0:
-                    self.doc.page_break()
-                self.doc.start_paragraph("CDDR-Generation")
-                text = self._("Generation %d") % (generation + 1)
-                mark = IndexMark(text, INDEX_TYPE_TOC, 2)
-                self.doc.write_text(text, mark)
-                self.doc.end_paragraph()
-                for key in gen_keys:
-                    person_handle = self.map[key]
-                    self.gen_handles[person_handle] = key
-                    self.write_person(key)
-        elif self.structure == "by lineage":
-            for key in sorted(self.map):
+        for generation, gen_keys in enumerate(self.gen_keys):
+            if self.pgbrk and generation > 0:
+                self.doc.page_break()
+            self.doc.start_paragraph("CDDR-Generation")
+            text = self._("Generation %d") % (generation + 1)
+            mark = IndexMark(text, INDEX_TYPE_TOC, 2)
+            self.doc.write_text(text, mark)
+            self.doc.end_paragraph()
+            for key in gen_keys:
+                person_handle = self.map[key]
+                self.gen_handles[person_handle] = key
                 self.write_person(key)
-        else:
-            raise AttributeError("no such structure: '%s'" % self.structure)
 
     def write_path(self, person):
         """determine the path of the person"""
@@ -784,7 +1020,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         structure.set_items(
             [
                 ("by generation", _("show people by generations")),
-                ("by lineage", _("show people by lineage")),
             ]
         )
         structure.set_help(_("How people are organized in the report"))
