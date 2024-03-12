@@ -384,18 +384,12 @@ class CompactDetailedDescendantReport(Report):
         # Initialize the Printinfo class
         self._showdups = menu.get_option_by_name("dups").get_value()
         numbering = menu.get_option_by_name("numbering").get_value()
-        # if numbering == "Simple":
-        #     obj = PrintSimple(self._showdups)
         if numbering == "Henry":
             obj = PrintHenry()
         elif numbering == "Modified Henry":
             obj = PrintHenry(modified=True)
         elif numbering == "d'Aboville":
             obj = PrintDAboville()
-        # elif numbering == "de Villiers/Pama":
-        #     obj = PrintVilliers()
-        # elif numbering == "Meurgey de Tupigny":
-        #     obj = PrintMeurgey()
         else:
             raise AttributeError("no such numbering: '%s'" % numbering)
 
@@ -507,36 +501,6 @@ class CompactDetailedDescendantReport(Report):
                 )
                 index += 1
 
-    def apply_mod_reg_filter_aux(self, person_handle, index, cur_gen=1):
-        """Filter for Record-style (Modified Register) numbering"""
-        if (not person_handle) or (cur_gen > self.max_generations):
-            return
-        self.map[index] = person_handle
-
-        if len(self.gen_keys) < cur_gen:
-            self.gen_keys.append([index])
-        else:
-            self.gen_keys[cur_gen - 1].append(index)
-
-        person = self._db.get_person_from_handle(person_handle)
-
-        for family_handle in person.get_family_handle_list():
-            family = self._db.get_family_from_handle(family_handle)
-            for child_ref in family.get_child_ref_list():
-                _ix = max(self.map)
-                self.apply_mod_reg_filter_aux(child_ref.ref, _ix + 1, cur_gen + 1)
-
-    def apply_mod_reg_filter(self, person_handle):
-        """Entry Filter for Record-style (Modified Register) numbering"""
-        self.apply_mod_reg_filter_aux(person_handle, 1, 1)
-        mod_reg_number = 1
-        for keys in self.gen_keys:
-            for key in keys:
-                person_handle = self.map[key]
-                if person_handle not in self.dnumber:
-                    self.dnumber[person_handle] = mod_reg_number
-                    mod_reg_number += 1
-
     def write_report(self):
         """
         This function is called by the report system and writes the report.
@@ -547,8 +511,6 @@ class CompactDetailedDescendantReport(Report):
             self.apply_mhenry_filter(self.center_person.get_handle(), 1, "1")
         elif self.numbering == "d'Aboville":
             self.apply_daboville_filter(self.center_person.get_handle(), 1, "1")
-        elif self.numbering == "Record (Modified Register)":
-            self.apply_mod_reg_filter(self.center_person.get_handle())
         else:
             raise AttributeError("no such numbering: '%s'" % self.numbering)
 
@@ -986,10 +948,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
                 ("Henry", _("Henry numbering")),
                 ("Modified Henry", _("Modified Henry numbering")),
                 ("d'Aboville", _("d'Aboville numbering")),
-                (
-                    "Record (Modified Register)",
-                    _("Record (Modified Register) numbering"),
-                ),
             ]
         )
         numbering.set_help(_("The numbering system to be used"))
