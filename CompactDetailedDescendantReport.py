@@ -382,7 +382,6 @@ class CompactDetailedDescendantReport(Report):
         self.place_format = menu.get_option_by_name("place_format").get_value()
 
         # Initialize the Printinfo class
-        self._showdups = menu.get_option_by_name("dups").get_value()
         numbering = menu.get_option_by_name("numbering").get_value()
         if numbering == "Henry":
             obj = PrintHenry()
@@ -969,11 +968,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         stdoptions.add_gramps_id_option(menu, category)
 
         menu.add_option(category_name, "lifespan", lifespan)
-
-        dups = BooleanOption(_("Show duplicate trees"), True)
-        dups.set_help(_("Whether to show duplicate Family Trees in the report."))
-        menu.add_option(category_name, "dups", dups)
-
 
         pagebbg = BooleanOption(_("Page break between generations"), False)
         pagebbg.set_help(_("Whether to start a new page after each generation."))
