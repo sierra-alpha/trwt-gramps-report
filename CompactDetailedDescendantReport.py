@@ -185,8 +185,6 @@ class Printinfo:
         doc,
         database,
         numbering,
-        showmarriage,
-        showdivorce,
         showlifespan,
         name_display,
         rlocale,
@@ -199,8 +197,6 @@ class Printinfo:
         self.database = database
         self.numbering = numbering
         # variables
-        self.showmarriage = showmarriage
-        self.showdivorce = showdivorce
         self.showlifespan = showlifespan
         self.want_ids = want_ids
         self._ = rlocale.translation.sgettext  # needed for English
@@ -239,19 +235,6 @@ class Printinfo:
 
             if string:
                 string = " (" + string + ")"
-
-        if family and self.showmarriage:
-            tmp = self.__date_place(get_marriage_or_fallback(self.database, family))
-            if tmp:
-                string += self._(", ") + tmp  # Arabic OK
-
-        if family and self.showdivorce:
-            tmp = self.__date_place(get_divorce_or_fallback(self.database, family))
-            if tmp:
-                string += self._(", ") + tmp  # Arabic OK
-
-        if family and self.want_ids:
-            string += " (%s)" % family.get_gramps_id()
 
         self.doc.write_text(string)
 
@@ -416,8 +399,6 @@ class CompactDetailedDescendantReport(Report):
         else:
             raise AttributeError("no such numbering: '%s'" % numbering)
 
-        marrs = menu.get_option_by_name("marrs").get_value()
-        divs = menu.get_option_by_name("divs").get_value()
         lifespan = menu.get_option_by_name("lifespan").get_value()
 
         stdoptions.run_name_format_option(self, menu)
@@ -428,8 +409,6 @@ class CompactDetailedDescendantReport(Report):
             self.doc,
             self.database,
             obj,
-            marrs,
-            divs,
             lifespan,
             self._name_display,
             self._locale,
@@ -1030,6 +1009,13 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         add_option("gen", gen)
 
         stdoptions.add_gramps_id_option(menu, category)
+
+        menu.add_option(category_name, "lifespan", lifespan)
+
+        dups = BooleanOption(_("Show duplicate trees"), True)
+        dups.set_help(_("Whether to show duplicate Family Trees in the report."))
+        menu.add_option(category_name, "dups", dups)
+
 
         pagebbg = BooleanOption(_("Page break between generations"), False)
         pagebbg.set_help(_("Whether to start a new page after each generation."))
