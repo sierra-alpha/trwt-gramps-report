@@ -59,6 +59,13 @@ _ = glocale.translation.gettext
 from gramps.gen.errors import ReportError
 from gramps.gen.lib import FamilyRelType, Person, NoteType
 from gramps.gen.utils.alive import probably_alive
+
+from gramps.gen.utils.db import (
+    get_birth_or_fallback,
+    get_death_or_fallback,
+    get_marriage_or_fallback,
+    get_divorce_or_fallback,
+)
 from gramps.gen.plug.menu import (
     BooleanOption,
     NumberOption,
@@ -98,79 +105,6 @@ HENRY = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 # ------------------------------------------------------------------------
 #
-# PrintDAboville
-#
-# ------------------------------------------------------------------------
-class PrintDAboville:
-    """
-    d'Aboville numbering system
-
-    (according to en.wikipedia.org/Genealogical_numbering_systems
-    his name is spelled "d'Aboville" and not "D'Aboville" but I will
-    leave this class name alone, mainly fixing the translated string,
-    so that it is both accurate and also agrees with the DDR string)
-    """
-
-    def __init__(self):
-        self.num = [0]
-
-    def number(self, level):
-        """Make the current number based upon the current level"""
-        # Set up the array based on the current level
-        while len(self.num) > level:  # We can go from a level 8 to level 2
-            self.num.pop()
-        if len(self.num) < level:
-            self.num.append(0)
-
-        # Increment the current level - initalized with 0
-        self.num[-1] += 1
-
-        # Display
-        return ".".join(map(str, self.num))
-
-
-# ------------------------------------------------------------------------
-#
-# PrintHenry
-#
-# ------------------------------------------------------------------------
-class PrintHenry:
-    """Henry numbering system"""
-
-    def __init__(self, modified=False):
-        self.henry = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        self.modified = modified
-        self.num = [0]
-
-    def number(self, level):
-        """Make the current number based upon the current level"""
-        # Set up the array based on the current level
-        while len(self.num) > level:  # We can go from a level 8 to level 2
-            self.num.pop()
-        if len(self.num) < level:
-            self.num.append(0)
-
-        # Incriment the current level - initalized with 0
-        self.num[-1] += 1
-
-        def strd(inti):
-            """no change needed"""
-            return "(" + str(inti) + ")"
-
-        # Display
-        if self.modified is False:
-            return "".join(
-                map(
-                    lambda x: self.henry[x - 1] if x <= len(self.henry) else strd(x),
-                    self.num,
-                )
-            )
-        else:
-            return "".join(map(lambda x: str(x) if x < 10 else strd(x), self.num))
-
-
-# ------------------------------------------------------------------------
-#
 # Printinfo
 #
 # ------------------------------------------------------------------------
@@ -184,21 +118,20 @@ class Printinfo:
         self,
         doc,
         database,
-        numbering,
-        showlifespan,
+        dnumber,
+        deathage,
         name_display,
         rlocale,
-        want_ids,
         pformat,
     ):
         # classes
         self._name_display = name_display
         self.doc = doc
         self.database = database
-        self.numbering = numbering
+        self.dnumber = dnumber
         # variables
-        self.showlifespan = showlifespan
-        self.want_ids = want_ids
+        self.deathage = deathage
+        self.rlocale = rlocale # Temp for now to see if I need to fix it
         self._ = rlocale.translation.sgettext  # needed for English
         self._get_date = rlocale.get_date
         self.pformat = pformat
@@ -222,30 +155,68 @@ class Printinfo:
                 }
         return ""
 
+    def __get_age_at_death(self, person):
+        """
+        Calculate the age the person died.
+
+        Returns None or the age.
+        """
+        birth_ref = person.get_birth_ref()
+        if birth_ref:
+            birth_event = self.database.get_event_from_handle(birth_ref.ref)
+            birth = birth_event.get_date_object()
+            birth_year_valid = birth.get_year_valid()
+        else:
+            birth_year_valid = False
+        death_ref = person.get_death_ref()
+        if death_ref:
+            death_event = self.database.get_event_from_handle(death_ref.ref)
+            death = death_event.get_date_object()
+            death_year_valid = death.get_year_valid()
+        else:
+            death_year_valid = False
+
+        # without at least a year for each event no age can be calculated
+        if birth_year_valid and death_year_valid:
+            span = death - birth
+            if span and span.is_valid():
+                if span:
+                    age = span.get_repr(dlocale=self.rlocale)
+                else:
+                    age = None
+            else:
+                age = None
+        else:
+            age = None
+
+        return age
+
     def dump_string(self, person, family=None):
         """generate a descriptive string for a person"""
-        string = ""
 
-        if self.showlifespan:
-            string += self.__date_place(get_birth_or_fallback(self.database, person))
-            tmp = self.__date_place(get_death_or_fallback(self.database, person))
-            if string and tmp:
-                string += self._(", ")  # Arabic OK
-            string += tmp
+        ddate = self.__date_place(get_death_or_fallback(self.database, person))
+        age = self.__get_age_at_death(person)
+        string = "{}{}".format(
+            self.__date_place(get_birth_or_fallback(self.database, person)),
+            "{}{}{}".format(
+                self._(", "),
+                ddate,
+                " ({})".format(age) if age else ""
+            ) if ddate else ""
+        )
 
-            if string:
-                string = " (" + string + ")"
+        if string:
+            string = "\n  " + string
 
         self.doc.write_text(string)
 
-    def print_person(self, level, person):
+    def print_person(self, person, main_entry=True):
         """print the person"""
-        display_num = self.numbering.number(level)
-        self.doc.start_paragraph("DR-Level%d" % min(level, 32), display_num)
+        display_num = self.dnumber[person.handle]
+        person_style = "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
+        self.doc.start_paragraph(person_style, display_num)
         mark = utils.get_person_mark(self.database, person)
         self.doc.write_text(self._name_display.display(person), mark)
-        if self.want_ids:
-            self.doc.write_text(" (%s)" % person.get_gramps_id())
         self.dump_string(person)
         self.doc.end_paragraph()
         return display_num
@@ -256,15 +227,13 @@ class Printinfo:
         if spouse_handle:
             spouse = self.database.get_person_from_handle(spouse_handle)
             mark = utils.get_person_mark(self.database, spouse)
-            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            self.doc.start_paragraph("CDDR-ChildListSimple")
             name = self._name_display.display(spouse)
             self.doc.write_text(self._("sp. %(spouse)s") % {"spouse": name}, mark)
-            if self.want_ids:
-                self.doc.write_text(" (%s)" % spouse.get_gramps_id())
             self.dump_string(spouse, family_handle)
             self.doc.end_paragraph()
         else:
-            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            self.doc.start_paragraph("CDDR-ChildListSimple")
             self.doc.write_text(
                 self._("sp. %(spouse)s") % {"spouse": self._("Unknown")}
             )
@@ -276,7 +245,7 @@ class Printinfo:
         # print reference here
         if person:
             mark = utils.get_person_mark(self.database, person)
-            self.doc.start_paragraph("DR-Spouse%d" % min(level, 32))
+            self.doc.start_paragraph("CDDR-ChildListSimple")
             name = self._name_display.display(person)
             self.doc.write_text(
                 self._("sp. see %(reference)s: %(spouse)s")
@@ -377,20 +346,18 @@ class CompactDetailedDescendantReport(Report):
         else:
             empty_place = ""
 
+        if self.numbering == "Henry":
+            self.apply_henry_filter(self.center_person.get_handle(), 1, "1")
+        elif self.numbering == "Modified Henry":
+            self.apply_mhenry_filter(self.center_person.get_handle(), 1, "1")
+        elif self.numbering == "d'Aboville":
+            self.apply_daboville_filter(self.center_person.get_handle(), 1, "1")
+        else:
+            raise AttributeError("no such numbering: '%s'" % self.numbering)
+
         stdoptions.run_name_format_option(self, menu)
 
         self.place_format = menu.get_option_by_name("place_format").get_value()
-
-        # Initialize the Printinfo class
-        numbering = menu.get_option_by_name("numbering").get_value()
-        if numbering == "Henry":
-            obj = PrintHenry()
-        elif numbering == "Modified Henry":
-            obj = PrintHenry(modified=True)
-        elif numbering == "d'Aboville":
-            obj = PrintDAboville()
-        else:
-            raise AttributeError("no such numbering: '%s'" % numbering)
 
         lifespan = menu.get_option_by_name("lifespan").get_value()
 
@@ -398,28 +365,15 @@ class CompactDetailedDescendantReport(Report):
 
         pformat = menu.get_option_by_name("place_format").get_value()
 
-        self.obj_print = Printinfo(
+        self.print_people = Printinfo(
             self.doc,
             self.database,
-            obj,
+            self.dnumber,
             lifespan,
             self._name_display,
             self._locale,
-            self.want_ids,
             pformat,
         )
-        self.__narrator = Narrator(
-            self._db,
-            verbose=False,
-            use_call_name=False,
-            use_fulldate=False,
-            empty_date=empty_date,
-            empty_place=empty_place,
-            place_format=self.place_format,
-            nlocale=self._locale,
-            get_endnote_numbers=self.endnotes,
-        )
-
         self.bibli = Bibliography(Bibliography.MODE_DATE | Bibliography.MODE_PAGE)
 
     def apply_henry_filter(self, person_handle, index, pid, cur_gen=1):
@@ -504,14 +458,6 @@ class CompactDetailedDescendantReport(Report):
         """
         This function is called by the report system and writes the report.
         """
-        if self.numbering == "Henry":
-            self.apply_henry_filter(self.center_person.get_handle(), 1, "1")
-        elif self.numbering == "Modified Henry":
-            self.apply_mhenry_filter(self.center_person.get_handle(), 1, "1")
-        elif self.numbering == "d'Aboville":
-            self.apply_daboville_filter(self.center_person.get_handle(), 1, "1")
-        else:
-            raise AttributeError("no such numbering: '%s'" % self.numbering)
 
         name = self._name_display.display_name(self.center_person.get_primary_name())
         if not name:
@@ -540,77 +486,28 @@ class CompactDetailedDescendantReport(Report):
                 self.gen_handles[person_handle] = key
                 self.write_person(key)
 
-    def write_path(self, person):
-        """determine the path of the person"""
-        path = []
-        while True:
-            # person changes in the loop
-            family_handle = person.get_main_parents_family_handle()
-            if family_handle:
-                family = self._db.get_family_from_handle(family_handle)
-                mother_handle = family.get_mother_handle()
-                father_handle = family.get_father_handle()
-                if mother_handle and mother_handle in self.dnumber:
-                    person = self._db.get_person_from_handle(mother_handle)
-                    person_name = self._name_display.display_name(
-                        person.get_primary_name()
-                    )
-                    path.append(person_name)
-                elif father_handle and father_handle in self.dnumber:
-                    person = self._db.get_person_from_handle(father_handle)
-                    person_name = self._name_display.display_name(
-                        person.get_primary_name()
-                    )
-                    path.append(person_name)
-                else:
-                    break
-            else:
-                break
-
-        index = len(path)
-
-        if index:
-            self.doc.write_text("(")
-
-        for name in path:
-            if index == 1:
-                self.doc.write_text(name + "-" + str(index) + ") ")
-            else:
-                # Translators: needed for Arabic, ignore otherwise
-                self.doc.write_text(name + "-" + str(index) + self._("; "))
-            index -= 1
-
     def write_person(self, key):
         """Output birth, death, parentage, marriage information"""
 
         person_handle = self.map[key]
         person = self._db.get_person_from_handle(person_handle)
 
-        val = self.dnumber[person_handle]
+        self.print_people.print_person(person)
 
-        if val in self.numbers_printed:
-            return
-        else:
-            self.numbers_printed.append(val)
+        # if val in self.numbers_printed:
+        #     return
+        # else:
+        #     self.numbers_printed.append(val)
 
-        self.doc.start_paragraph("CDDR-First-Entry", "%s." % val)
+        # if name[-1:] == ".":
+        #     self.doc.write_text_citation("%s " % self.endnotes(person))
+        # elif name:
+        #     self.doc.write_text_citation("%s. " % self.endnotes(person))
+        # self.doc.end_bold()
 
-        name = self._name_display.display(person)
-        if not name:
-            name = self._("Unknown")
-        mark = utils.get_person_mark(self._db, person)
+        # self.doc.end_paragraph()
 
-        self.doc.start_bold()
-        self.doc.write_text(name, mark)
-        if name[-1:] == ".":
-            self.doc.write_text_citation("%s " % self.endnotes(person))
-        elif name:
-            self.doc.write_text_citation("%s. " % self.endnotes(person))
-        self.doc.end_bold()
-
-        self.doc.end_paragraph()
-
-        self.write_person_info(person)
+        # self.write_person_info(person)
 
         if self.listchildren:
             for family_handle in person.get_family_handle_list():
@@ -653,56 +550,6 @@ class CompactDetailedDescendantReport(Report):
         self.doc.write_text_citation(text)
 
         self.doc.end_paragraph()
-
-    def __write_parents(self, person):
-        """write out the main parents of a person"""
-        family_handle = person.get_main_parents_family_handle()
-        if family_handle:
-            family = self._db.get_family_from_handle(family_handle)
-            mother_handle = family.get_mother_handle()
-            father_handle = family.get_father_handle()
-            if mother_handle:
-                mother = self._db.get_person_from_handle(mother_handle)
-                mother_name = self._name_display.display_name(mother.get_primary_name())
-                mother_mark = utils.get_person_mark(self._db, mother)
-            else:
-                mother_name = ""
-                mother_mark = ""
-            if father_handle:
-                father = self._db.get_person_from_handle(father_handle)
-                father_name = self._name_display.display_name(father.get_primary_name())
-                father_mark = utils.get_person_mark(self._db, father)
-            else:
-                father_name = ""
-                father_mark = ""
-            text = self.__narrator.get_child_string(father_name, mother_name)
-            if text:
-                self.doc.write_text(text)
-                if father_mark:
-                    self.doc.write_text("", father_mark)
-                if mother_mark:
-                    self.doc.write_text("", mother_mark)
-
-    def write_marriage(self, person):
-        """
-        Output marriage sentence.
-        """
-        is_first = True
-        for family_handle in person.get_family_handle_list():
-            family = self._db.get_family_from_handle(family_handle)
-            spouse_handle = utils.find_spouse(person, family)
-            if spouse_handle:
-                spouse = self._db.get_person_from_handle(spouse_handle)
-                spouse_mark = utils.get_person_mark(self._db, spouse)
-            else:
-                spouse_mark = None
-
-            text = self.__narrator.get_married_string(
-                family, is_first, self._name_display
-            )
-            if text:
-                self.doc.write_text_citation(text, spouse_mark)
-                is_first = False
 
     def __get_mate_names(self, family):
         """get the names of the parents in a family"""
@@ -837,65 +684,6 @@ class CompactDetailedDescendantReport(Report):
             self.doc.write_text_citation(text)
             self.doc.end_paragraph()
 
-    def write_person_info(self, person):
-        """write out all the person's information"""
-        name = self._name_display.display(person)
-        if not name:
-            name = self._("Unknown")
-        self.__narrator.set_subject(person)
-
-        plist = person.get_media_list()
-
-        self.doc.start_paragraph("CDDR-Entry")
-
-        text = self.__narrator.get_born_string()
-        if text:
-            self.doc.write_text_citation(text)
-
-        text = self.__narrator.get_baptised_string()
-        if text:
-            self.doc.write_text_citation(text)
-
-        text = self.__narrator.get_christened_string()
-        if text:
-            self.doc.write_text_citation(text)
-
-        # Write Death and/or Burial text only if not probably alive
-        if not probably_alive(person, self.database):
-            text = self.__narrator.get_died_string(self.calcageflag)
-            if text:
-                self.doc.write_text_citation(text)
-
-            text = self.__narrator.get_buried_string()
-            if text:
-                self.doc.write_text_citation(text)
-
-        self.write_marriage(person)
-        self.doc.end_paragraph()
-
-        first = True
-        if self.inc_names:
-            for alt_name in person.get_alternate_names():
-                if first:
-                    self.doc.start_paragraph("CDDR-MoreHeader")
-                    self.doc.write_text(
-                        self._("More about %(person_name)s:") % {"person_name": name}
-                    )
-                    self.doc.end_paragraph()
-                    first = False
-                self.doc.start_paragraph("CDDR-MoreDetails")
-                atype = self._get_type(alt_name.get_type())
-                aname = alt_name.get_regular_name()
-                self.doc.write_text_citation(
-                    self._("%(type)s: %(value)s%(endnotes)s")
-                    % {
-                        "type": self._(atype),
-                        "value": aname,
-                        "endnotes": self.endnotes(alt_name),
-                    }
-                )
-                self.doc.end_paragraph()
-
     def endnotes(self, obj):
         """write out any endnotes/footnotes"""
         if not obj:
@@ -965,9 +753,11 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         gen.set_help(_("The number of generations to include in the report"))
         add_option("gen", gen)
 
-        stdoptions.add_gramps_id_option(menu, category)
-
-        menu.add_option(category_name, "lifespan", lifespan)
+        lifespan = BooleanOption(_("Show birth and death info"), True)
+        lifespan.set_help(
+            _("Whether to show birth and death information in the report.")
+        )
+        add_option("lifespan", lifespan)
 
         pagebbg = BooleanOption(_("Page break between generations"), False)
         pagebbg.set_help(_("Whether to start a new page after each generation."))
