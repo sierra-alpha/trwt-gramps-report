@@ -47,6 +47,7 @@
 #
 # ------------------------------------------------------------------------
 from functools import partial
+from .dateutil.parser import parse
 
 # ------------------------------------------------------------------------
 #
@@ -191,24 +192,30 @@ class Printinfo:
 
         return age
 
-    def dump_string(self, person, family=None):
-        """generate a descriptive string for a person"""
+    def print_details(self, person, style):
+        """print descriptive details for a person"""
+
+        bdate = self.__date_place(get_birth_or_fallback(self.database, person)).rsplit("-")
+        if bdate:
+            bdate, bstring = parse(bdate, fuzzy_with_tokens)
+            self.doc.start_paragraph(style)
+            self.doc.write_text("{}{} {}". bstring[0], bdate.strftime(" %Y"), bstring[1])
+            self.doc.end_paragraph()
 
         ddate = self.__date_place(get_death_or_fallback(self.database, person))
-        age = self.__get_age_at_death(person)
-        string = "{}{}".format(
-            self.__date_place(get_birth_or_fallback(self.database, person)),
-            "{}{}{}".format(
-                self._(", "),
-                ddate,
-                " ({})".format(age) if age else ""
-            ) if ddate else ""
-        )
-
-        if string:
-            string = "\n  " + string
-
-        self.doc.write_text(string)
+        if ddate:
+            age = self.__get_age_at_death(person)
+            ddate, dstring = parse(bdate, fuzzy_with_tokens)
+            self.doc.start_paragraph(style)
+            self.doc.write_text(
+                "{}{} {}{}".format(
+                    dstring[0],
+                    ddate.strftime(" %Y"),
+                    dstring[1],
+                    " ({})".format(age) if age else ""
+                )
+            )
+            self.doc.end_paragraph()
 
     def print_person(self, person, main_entry=True):
         """print the person"""
@@ -216,9 +223,11 @@ class Printinfo:
         person_style = "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
         self.doc.start_paragraph(person_style, display_num)
         mark = utils.get_person_mark(self.database, person)
+        self.doc.start_bold() if main_entry else None
         self.doc.write_text(self._name_display.display(person), mark)
-        self.dump_string(person)
+        self.doc.end_bold() if main_entry else None
         self.doc.end_paragraph()
+        self.print_details(person, "CDDR-First-Details" if main_entry else "CDDR-ChildListSimple")
         return display_num
 
     def print_spouse(self, level, spouse_handle, family_handle):
@@ -802,10 +811,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
 
-        # incsources = BooleanOption(_("Include sources"), False)
-        # incsources.set_help(_("Whether to include source references."))
-        # add_option("incsources", incsources)
-
         incnames = BooleanOption(_("Include alternative names"), False)
         incnames.set_help(_("Whether to include other names."))
         add_option("incnames", incnames)
@@ -903,6 +908,15 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.25)
         para.set_description(_("The style used for first level headings."))
         default_style.add_paragraph_style("CDDR-First-Entry", para)
+
+        font = FontStyle()
+        font.set(size=8)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set(lmargin=1.5)
+        para.set_top_margin(0.0)
+        para.set_description(_("The style used for the first level details."))
+        default_style.add_paragraph_style("CDDR-First-Details", para)
 
         font = FontStyle()
         font.set(size=10, face=FONT_SANS_SERIF, bold=1)
