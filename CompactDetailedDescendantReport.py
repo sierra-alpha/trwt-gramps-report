@@ -238,7 +238,7 @@ class Printinfo:
 
     def print_person(self, person, main_entry=True, spouse=False):
         """print the person"""
-        display_num = self.dnumber[person.handle]
+        display_num = self.dnumber.get(person.handle)
         person_style = "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
         self.doc.start_paragraph(person_style, display_num)
         mark = utils.get_person_mark(self.database, person)
@@ -522,31 +522,25 @@ class CompactDetailedDescendantReport(Report):
 
         self.print_people.print_person(person)
 
-        # if person_handle not in self.printed_people_refs:
-        #     self.printed_people_refs[person_handle] = key
+        if person_handle not in self.printed_people_refs:
+            self.printed_people_refs[person_handle] = key
 
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
             spouse_handle = utils.find_spouse(person, family)
 
             if spouse_handle in self.printed_people_refs:
-                # # Just print a reference
-                # spouse = self.database.get_person_from_handle(spouse_handle)
-                # self.obj_print.print_reference(
-                #     level, spouse, self.printed_people_refs[spouse_handle]
-                # )
-                raise ReportError(
-                    "tried to print a reference - spouse: {}, spouse-handle: {}".format(
-                        spouse,
-                        spouse_handle
-                    )
+                # Just print a reference
+                spouse = self.database.get_person_from_handle(spouse_handle)
+                self.print_people.print_reference(
+                    spouse, self.printed_people_refs[spouse_handle]
                 )
             else:
                 self.print_people.print_spouse(spouse_handle)
 
-                # if spouse_handle:
-                #     spouse_num = self._("%s so.") % key
-                #     self.printed_people_refs[spouse_handle] = spouse_num
+                if spouse_handle:
+                    spouse_num = self._("%s so.") % key
+                    self.printed_people_refs[spouse_handle] = spouse_num
 
             if self.listchildren:
                 self.__write_children(family)
@@ -899,8 +893,8 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         table = TableStyle()
         table.set_width(100)
         table.set_columns(2)
-        table.set_column_width(0, 35)
-        table.set_column_width(1, 65)
+        table.set_column_width(0, 25)
+        table.set_column_width(1, 75)
         table.set_description(_("The style used for the children list table."))
         default_style.add_table_style("CDDR-ChildTable", table)
 
