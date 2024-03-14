@@ -15,15 +15,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# import os, sys, importlib
-
-# module_name = "dateutil"
-# filename = os.path.join(".", module_name, "__init__.py")
-# spec = importlib.util.spec_from_file_location(module_name, filename)
-# module = importlib.util.module_from_spec(spec)
-# sys.modules[spec.name] = module
-# spec.loader.exec_module(module)
-
 register(REPORT,
     id   = 'CompactDetailedDescendantReport',
     name = _('Compact Detailed Descendant Report'),
