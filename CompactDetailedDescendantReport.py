@@ -236,17 +236,24 @@ class Printinfo:
             )
             self.doc.end_paragraph()
 
-    def print_person(self, person, main_entry=True, spouse=False):
+    def print_person(
+            self,
+            person,
+            main_entry=True,
+            spouse=False,
+            person_style=None,
+            person_deets_style=None
+    ):
         """print the person"""
         display_num = self.dnumber.get(person.handle)
-        person_style = "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
-        self.doc.start_paragraph(person_style, display_num)
+        person_style = person_style or ("CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple")
+        self.doc.start_paragraph(person_style, "{} ".format(display_num))
         mark = utils.get_person_mark(self.database, person)
         self.doc.start_bold() if main_entry else None
         self.doc.write_text(self._name_display.display(person), mark)
         self.doc.end_bold() if main_entry else None
         self.doc.end_paragraph()
-        self.print_details(person, "CDDR-First-Details" if main_entry else "CDDR-ChildListSimple")
+        self.print_details(person, person_deets_style or ("CDDR-First-Details" if main_entry else "CDDR-ChildListSimple"))
         return display_num
 
     def print_spouse(self, spouse_handle):
@@ -255,12 +262,6 @@ class Printinfo:
         if spouse_handle:
             spouse = self.database.get_person_from_handle(spouse_handle)
             self.print_person(spouse, main_entry=False, spouse=True)
-            # mark = utils.get_person_mark(self.database, spouse)
-            # self.doc.start_paragraph("CDDR-ChildListSimple")
-            # name = self._name_display.display(spouse)
-            # self.doc.write_text(self._("so. %(spouse)s") % {"spouse": name}, mark)
-            # self.dump_string(spouse, family_handle)
-            # self.doc.end_paragraph()
         else:
             self.doc.start_paragraph("CDDR-ChildListSimple")
             self.doc.write_text(
@@ -925,7 +926,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         default_style.add_paragraph_style("CDDR-Entry", para)
 
         para = ParagraphStyle()
-        para.set(first_indent=-1.5, lmargin=1.5)
+        para.set(lmargin=0.0)
         para.set_top_margin(0.25)
         para.set_description(_("The style used for first level headings."))
         default_style.add_paragraph_style("CDDR-First-Entry", para)
@@ -934,7 +935,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         font.set(size=8)
         para = ParagraphStyle()
         para.set_font(font)
-        para.set(lmargin=1.5)
+        para.set(lmargin=0.5)
         para.set_top_margin(0.0)
         para.set_description(_("The style used for the first level details."))
         default_style.add_paragraph_style("CDDR-First-Details", para)
