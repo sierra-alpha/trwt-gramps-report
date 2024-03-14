@@ -47,7 +47,14 @@
 #
 # ------------------------------------------------------------------------
 from functools import partial
-from .dateutil.parser import parse
+
+
+# ------------------------------------------------------------------------
+#
+# packaged with addon pypi packages (see .gpr for details)
+#
+# ------------------------------------------------------------------------
+from dateutil.parser import parse, ParserError
 
 # ------------------------------------------------------------------------
 #
@@ -94,6 +101,8 @@ from gramps.plugins.lib.libnarrate import Narrator
 from gramps.gen.display.place import displayer as _pd
 from gramps.gen.display.name import displayer as _nd
 from gramps.gen.proxy import CacheProxyDb
+
+
 
 # ------------------------------------------------------------------------
 #
@@ -183,8 +192,7 @@ class Printinfo:
             if span and span.is_valid():
                 if span:
                     age = span.get_repr(dlocale=self.rlocale)
-                else:
-                    age = None
+                else: age = None
             else:
                 age = None
         else:
@@ -195,23 +203,34 @@ class Printinfo:
     def print_details(self, person, style):
         """print descriptive details for a person"""
 
-        bdate = self.__date_place(get_birth_or_fallback(self.database, person)).rsplit("-")
+        def process_dates(date):
+            try:
+                gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
+                gdate = gdate.strftime(" %Y")
+            except ParserError:
+                gdate = " Unknown"
+                gdate_text = date.split(maxsplit=1)
+
+            gdatestring = "{}{} {}".format(
+                gdate_text[0],
+                gdate,
+                "" if len(gdate_text) <= 1 else gdate_text[-1]
+            )
+            return gdatestring
+
+        bdate = self.__date_place(get_birth_or_fallback(self.database, person))
         if bdate:
-            bdate, bstring = parse(bdate, fuzzy_with_tokens)
             self.doc.start_paragraph(style)
-            self.doc.write_text("{}{} {}". bstring[0], bdate.strftime(" %Y"), bstring[1])
+            self.doc.write_text(process_dates(bdate))
             self.doc.end_paragraph()
 
         ddate = self.__date_place(get_death_or_fallback(self.database, person))
         if ddate:
             age = self.__get_age_at_death(person)
-            ddate, dstring = parse(bdate, fuzzy_with_tokens)
             self.doc.start_paragraph(style)
             self.doc.write_text(
-                "{}{} {}{}".format(
-                    dstring[0],
-                    ddate.strftime(" %Y"),
-                    dstring[1],
+                "{}{}".format(
+                    process_dates(ddate),
                     " ({})".format(age) if age else ""
                 )
             )
