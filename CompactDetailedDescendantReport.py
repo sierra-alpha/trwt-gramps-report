@@ -249,26 +249,26 @@ class Printinfo:
         self.print_details(person, "CDDR-First-Details" if main_entry else "CDDR-ChildListSimple")
         return display_num
 
-    def print_spouse(self, level, spouse_handle, family_handle):
+    def print_spouse(self, spouse_handle):
         """print the spouse"""
         # Currently print_spouses is the same for all numbering systems.
         if spouse_handle:
             spouse = self.database.get_person_from_handle(spouse_handle)
-            print_person(spouse, main_entry=False, spouse=True)
+            self.print_person(spouse, main_entry=False, spouse=True)
             # mark = utils.get_person_mark(self.database, spouse)
             # self.doc.start_paragraph("CDDR-ChildListSimple")
             # name = self._name_display.display(spouse)
-            # self.doc.write_text(self._("sp. %(spouse)s") % {"spouse": name}, mark)
+            # self.doc.write_text(self._("so. %(spouse)s") % {"spouse": name}, mark)
             # self.dump_string(spouse, family_handle)
             # self.doc.end_paragraph()
         else:
             self.doc.start_paragraph("CDDR-ChildListSimple")
             self.doc.write_text(
-                self._("sp. %(spouse)s") % {"spouse": self._("Unknown")}
+                self._("so. %(spouse)s") % {"spouse": self._("Unknown")}
             )
             self.doc.end_paragraph()
 
-    def print_reference(self, level, person, display_num):
+    def print_reference(self, person, display_num):
         """print the reference"""
         # Person and their family have already been printed so
         # print reference here
@@ -277,7 +277,7 @@ class Printinfo:
             self.doc.start_paragraph("CDDR-ChildListSimple")
             name = self._name_display.display(person)
             self.doc.write_text(
-                self._("sp. see %(reference)s: %(spouse)s")
+                self._("so. see %(reference)s: %(spouse)s")
                 % {"reference": display_num, "spouse": name},
                 mark,
             )
@@ -522,36 +522,31 @@ class CompactDetailedDescendantReport(Report):
 
         self.print_people.print_person(person)
 
-        if person_handle not in self.printed_people_refs:
-            self.printed_people_refs[person_handle] = key
+        # if person_handle not in self.printed_people_refs:
+        #     self.printed_people_refs[person_handle] = key
 
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
             spouse_handle = utils.find_spouse(person, family)
 
             if spouse_handle in self.printed_people_refs:
-                # Just print a reference
-                spouse = self.database.get_person_from_handle(spouse_handle)
-                self.obj_print.print_reference(
-                    level, spouse, self.printed_people_refs[spouse_handle]
+                # # Just print a reference
+                # spouse = self.database.get_person_from_handle(spouse_handle)
+                # self.obj_print.print_reference(
+                #     level, spouse, self.printed_people_refs[spouse_handle]
+                # )
+                raise ReportError(
+                    "tried to print a reference - spouse: {}, spouse-handle: {}".format(
+                        spouse,
+                        spouse_handle
+                    )
                 )
-                raise ReportError("tried to print a reference")
             else:
-                self.print_people.print_spouse(spouse_handle, family)
+                self.print_people.print_spouse(spouse_handle)
 
-                if spouse_handle:
-                    spouse_num = self._("%s so.") % key
-                    self.printed_people_refs[spouse_handle] = spouse_num
-
-                if level >= self.max_generations:
-                    continue
-
-                childlist = family.get_child_ref_list()[:]
-                for child_ref in childlist:
-                    child = self.database.get_person_from_handle(child_ref.ref)
-                    self.recurse(level + 1, child, ref_str)
-
-
+                # if spouse_handle:
+                #     spouse_num = self._("%s so.") % key
+                #     self.printed_people_refs[spouse_handle] = spouse_num
 
             if self.listchildren:
                 self.__write_children(family)
