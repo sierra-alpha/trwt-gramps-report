@@ -236,7 +236,7 @@ class Printinfo:
             )
             self.doc.end_paragraph()
 
-    def print_person(self, person, main_entry=True):
+    def print_person(self, person, main_entry=True, spouse=False):
         """print the person"""
         display_num = self.dnumber[person.handle]
         person_style = "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
@@ -254,12 +254,13 @@ class Printinfo:
         # Currently print_spouses is the same for all numbering systems.
         if spouse_handle:
             spouse = self.database.get_person_from_handle(spouse_handle)
-            mark = utils.get_person_mark(self.database, spouse)
-            self.doc.start_paragraph("CDDR-ChildListSimple")
-            name = self._name_display.display(spouse)
-            self.doc.write_text(self._("sp. %(spouse)s") % {"spouse": name}, mark)
-            self.dump_string(spouse, family_handle)
-            self.doc.end_paragraph()
+            print_person(spouse, main_entry=False, spouse=True)
+            # mark = utils.get_person_mark(self.database, spouse)
+            # self.doc.start_paragraph("CDDR-ChildListSimple")
+            # name = self._name_display.display(spouse)
+            # self.doc.write_text(self._("sp. %(spouse)s") % {"spouse": name}, mark)
+            # self.dump_string(spouse, family_handle)
+            # self.doc.end_paragraph()
         else:
             self.doc.start_paragraph("CDDR-ChildListSimple")
             self.doc.write_text(
@@ -325,6 +326,7 @@ class CompactDetailedDescendantReport(Report):
         Report.__init__(self, database, options, user)
 
         self.map = {}
+        self.printed_people_refs = {}
         self._user = user
 
         menu = options.menu
@@ -499,8 +501,6 @@ class CompactDetailedDescendantReport(Report):
         self.doc.write_text(title, mark)
         self.doc.end_paragraph()
 
-        self.numbers_printed = list()
-
         for generation, gen_keys in enumerate(self.gen_keys):
             if self.pgbrk and generation > 0:
                 self.doc.page_break()
@@ -522,26 +522,39 @@ class CompactDetailedDescendantReport(Report):
 
         self.print_people.print_person(person)
 
-        # if val in self.numbers_printed:
-        #     return
-        # else:
-        #     self.numbers_printed.append(val)
+        if person_handle not in self.printed_people_refs:
+            self.printed_people_refs[person_handle] = key
 
-        # if name[-1:] == ".":
-        #     self.doc.write_text_citation("%s " % self.endnotes(person))
-        # elif name:
-        #     self.doc.write_text_citation("%s. " % self.endnotes(person))
-        # self.doc.end_bold()
+        for family_handle in person.get_family_handle_list():
+            family = self._db.get_family_from_handle(family_handle)
+            spouse_handle = utils.find_spouse(person, family)
 
-        # self.doc.end_paragraph()
+            if spouse_handle in self.printed_people_refs:
+                # Just print a reference
+                spouse = self.database.get_person_from_handle(spouse_handle)
+                self.obj_print.print_reference(
+                    level, spouse, self.printed_people_refs[spouse_handle]
+                )
+                raise ReportError("tried to print a reference")
+            else:
+                self.print_people.print_spouse(spouse_handle, family)
 
-        # self.write_person_info(person)
+                if spouse_handle:
+                    spouse_num = self._("%s so.") % key
+                    self.printed_people_refs[spouse_handle] = spouse_num
 
-        if self.listchildren:
-            for family_handle in person.get_family_handle_list():
-                family = self._db.get_family_from_handle(family_handle)
-                if self.listchildren:
-                    self.__write_children(family)
+                if level >= self.max_generations:
+                    continue
+
+                childlist = family.get_child_ref_list()[:]
+                for child_ref in childlist:
+                    child = self.database.get_person_from_handle(child_ref.ref)
+                    self.recurse(level + 1, child, ref_str)
+
+
+
+            if self.listchildren:
+                self.__write_children(family)
 
     def write_event(self, event_ref):
         """write out the details of an event"""
