@@ -271,7 +271,7 @@ class Printinfo:
             )
         )
 
-    def print_spouse(self, spouse_handle):
+    def print_spouse(self, spouse_handle, person_style=None, person_deets_style=None):
         """print the spouse"""
         # Currently print_spouses is the same for all numbering systems.
         if spouse_handle:
@@ -280,11 +280,11 @@ class Printinfo:
                 spouse,
                 main_entry=False,
                 spouse=True,
-                person_style="CDDR-First-Entry-Spouse",
-                person_deets_style="CDDR-First-Details-Spouse"
+                person_style=person_style or "CDDR-First-Entry-Spouse",
+                person_deets_style=person_deets_style or "CDDR-First-Details-Spouse"
             )
         else:
-            self.doc.start_paragraph("CDDR-First-Entry-Spouse")
+            self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
             self.doc.write_text(
                 self._("so. %(spouse)s") % {"spouse": self._("Unknown")}
             )
@@ -533,6 +533,7 @@ class CompactDetailedDescendantReport(Report):
         self.doc.end_paragraph()
 
         for generation, gen_keys in enumerate(self.gen_keys):
+            # Need to catch an empty generation
             if self.pgbrk and generation > 0:
                 self.doc.page_break()
             self.doc.start_paragraph("CDDR-Generation")
@@ -590,6 +591,7 @@ class CompactDetailedDescendantReport(Report):
 
                 if self.listchildren:
                     self.__write_children(family, person)
+
 
     def write_event(self, event_ref):
         """write out the details of an event"""
@@ -709,10 +711,36 @@ class CompactDetailedDescendantReport(Report):
             self.doc.start_cell("CDDR-ChildTableCell")
             if prefix:
                 self.doc.start_paragraph("CDDR-ChildListSimple")
-                self.doc.write_text("%s." % child_name, child_mark)
+                self.doc.write_text("%s" % child_name, child_mark)
                 self.doc.end_paragraph()
             else:
-                self.print_people.print_person(child)
+                self.print_people.print_person(child, main_entry=False, person_deets_style="CDDR-First-Details")
+                for family_handle in child.get_family_handle_list():
+
+                    family = self._db.get_family_from_handle(family_handle)
+                    spouse_handle = utils.find_spouse(child, family)
+
+                    if spouse_handle in self.printed_people_refs:
+                        # Just print a reference
+                        spouse = self.database.get_person_from_handle(spouse_handle)
+                        self.print_people.print_reference(
+                            spouse,
+                            self.printed_people_refs[spouse_handle],
+                            "CDDR-ChildListSimpleIndented",
+                            is_spouse=True
+                        )
+                    else:
+                        self.print_people.print_spouse(
+                            spouse_handle,
+                            person_style="CDDR-ChildListSimpleIndented",
+                        )
+
+                        if spouse_handle and spouse_handle not in self.dnumber:
+                            spouse_num = "so. of: {} {}".format(
+                                self.dnumber[child.handle], self._name_display.display(person)
+                            )
+                            self.printed_people_refs[spouse_handle] = spouse_num
+
             self.doc.end_cell()
 
             self.doc.end_row()
@@ -972,9 +1000,17 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_description(_("The style used for the Children list text."))
         default_style.add_paragraph_style("CDDR-ChildListSimple", para)
 
+        font = FontStyle()
+        font.set(size=10)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set(lmargin=0.2)
+        para.set_description(_("The style used for the Children list text - indented."))
+        default_style.add_paragraph_style("CDDR-ChildListSimpleIndented", para)
+
         para = ParagraphStyle()
         para.set(lmargin=1.5)
-        para.set_top_margin(0.10)
+        para.set_top_margin(0.1)
         para.set_description(_("The basic style used for the text display."))
         default_style.add_paragraph_style("CDDR-Entry", para)
 
