@@ -550,6 +550,13 @@ class CompactDetailedDescendantReport(Report):
 
         person_handle = self.map[key]
         person = self._db.get_person_from_handle(person_handle)
+        person_dnum = self.dnumber[person_handle]
+
+        if person_dnum != 1 and not person.get_family_handle_list():
+            # If we have no family and we're not the first person then we'll be
+            # already printed elsewhere so we can skip
+            #
+            return
 
         self.print_people.print_person(person)
 
