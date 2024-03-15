@@ -51,7 +51,7 @@ from functools import partial
 
 # ------------------------------------------------------------------------
 #
-# packaged with addon pypi packages (see .gpr for details)
+# pypi packages included with this addon
 #
 # ------------------------------------------------------------------------
 from dateutil.parser import parse, ParserError
@@ -249,7 +249,7 @@ class Printinfo:
         display_num = self.dnumber.get(person.handle)
         display_num = "{} ".format(display_num) if display_num else ""
         person_style = person_style or ("CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple")
-        self.doc.start_paragraph(person_style, display_num if not spouse else "")
+        self.doc.start_paragraph(person_style, display_num if main_entry else "")
         mark = utils.get_person_mark(self.database, person)
         self.doc.start_bold() if main_entry else None
         display_name = self._name_display.display(person)
@@ -552,9 +552,12 @@ class CompactDetailedDescendantReport(Report):
         person = self._db.get_person_from_handle(person_handle)
         person_dnum = self.dnumber[person_handle]
 
-        if person_dnum != 1 and not person.get_family_handle_list():
-            # If we have no family and we're not the first person then we'll be
-            # already printed elsewhere so we can skip
+        if person_dnum != 1 and not any(
+                y for x in person.get_family_handle_list()
+                for y in self._db.get_family_from_handle(x).get_child_ref_list()
+        ):
+            # If we have no descendants and we're not the first person then
+            # we'll be already printed elsewhere so we can skip
             #
             return
 
