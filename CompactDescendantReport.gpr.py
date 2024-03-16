@@ -28,6 +28,6 @@ register(REPORT,
     category = CATEGORY_TEXT,
     reportclass = 'CompactDetailedDescendantReport',
     optionclass = 'CompactDetailedDescendantOptions',
-    report_modes = [REPORT_MODE_GUI, REPORT_MODE_CLI],
+    report_modes = [REPORT_MODE_GUI, REPORT_MODE_CLI, REPORT_MODE_BKI],
     require_active = True
     )
