@@ -533,7 +533,7 @@ class CompactDetailedDescendantReport(Report):
         self.doc.end_paragraph()
 
         for generation, gen_keys in enumerate(self.gen_keys):
-            # Need to catch an empty generation
+
             if self.pgbrk and generation > 0:
                 self.doc.page_break()
             self.doc.start_paragraph("CDDR-Generation")
@@ -541,6 +541,26 @@ class CompactDetailedDescendantReport(Report):
             mark = IndexMark(text, INDEX_TYPE_TOC, 2)
             self.doc.write_text(text, mark)
             self.doc.end_paragraph()
+
+            # Need to catch an empty generation
+            if generation > 0 and not any(
+                    z for x in gen_keys
+                    for y in self._db.get_person_from_handle(self.map[x]).get_family_handle_list()
+                    for z in self._db.get_family_from_handle(y).get_child_ref_list()
+            ):
+
+                self.doc.start_paragraph("CDDR-ChildListSimple")
+                text = self._(
+                    "\nAll people in this generation have no children themselves, so they are displayed "
+                    "as children in the previous generation."
+                )
+                self.doc.write_text(text)
+                self.doc.end_paragraph()
+                # If everyone in this generation doesn't have any children
+                # then we've printed everyone elsewhere so we can skip
+                #
+                continue
+
             for key in gen_keys:
                 person_handle = self.map[key]
                 self.gen_handles[person_handle] = key
