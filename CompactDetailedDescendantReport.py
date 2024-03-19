@@ -254,7 +254,7 @@ class Printinfo:
         self.doc.start_bold() if main_entry else None
         display_name = self._name_display.display(person)
         self.doc.write_text(
-            "so. {}{}".format(
+            "= {}{}".format(
                 display_name,
                 ". See reference {} for their individual record".format(
                     display_num
@@ -286,7 +286,7 @@ class Printinfo:
         else:
             self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
             self.doc.write_text(
-                self._("so. %(spouse)s") % {"spouse": self._("Unknown")}
+                self._("= %(spouse)s") % {"spouse": self._("Unknown")}
             )
             self.doc.end_paragraph()
 
@@ -300,13 +300,13 @@ class Printinfo:
             name = self._name_display.display(person)
             self.doc.write_text(
                 "{}{}, see {}".format(
-                    "so. " if is_spouse else "",
+                    "= " if is_spouse else "",
                     name,
                     "{} {}.".format(
                         display_num,
                         (
                             "for details" if not is_spouse
-                            else "for so. and family details"
+                            else "for family details"
                         )
                     )
                 ),
@@ -604,7 +604,7 @@ class CompactDetailedDescendantReport(Report):
                 self.print_people.print_spouse(spouse_handle)
 
                 if spouse_handle and spouse_handle not in self.dnumber:
-                    spouse_num = "so. of: {} {}".format(
+                    spouse_num = "= of: {} {}".format(
                         self.dnumber[person_handle], self._name_display.display(person)
                     )
                     self.printed_people_refs[spouse_handle] = spouse_num
@@ -756,7 +756,7 @@ class CompactDetailedDescendantReport(Report):
                         )
 
                         if spouse_handle and spouse_handle not in self.dnumber:
-                            spouse_num = "so. of: {} {}".format(
+                            spouse_num = "= of: {} {}".format(
                                 self.dnumber[child.handle], self._name_display.display(person)
                             )
                             self.printed_people_refs[spouse_handle] = spouse_num
