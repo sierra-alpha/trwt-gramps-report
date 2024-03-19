@@ -146,6 +146,53 @@ class Printinfo:
         self._get_date = rlocale.get_date
         self.pformat = pformat
 
+    def process_dates(self, date):
+        try:
+            gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
+            gdate = gdate.strftime(" %Y")
+        except ParserError:
+            gdate = " Unknown"
+            gdate_text = date.split(maxsplit=1)
+
+        gdatestring = "{}{} {}".format(
+            gdate_text[0],
+            gdate,
+            "" if len(gdate_text) <= 1 else gdate_text[-1]
+        )
+        return gdatestring
+
+    def get_person_mark(self, person):
+        """
+        Return a IndexMark that can be used to index a person in a report
+
+        :param dbase: the Gramps database instance
+        :param person: the key is for
+        """
+        if not person:
+            return None
+
+        name = self._name_display.display(person)
+        birth = " "
+        death = " "
+        key = ""
+
+        birth_ref = person.get_birth_ref()
+        if birth_ref:
+            birth_event = self.database.get_event_from_handle(birth_ref.ref)
+            birth = get_date(birth_event)
+
+        death_ref = person.get_death_ref()
+        if death_ref:
+            death_event = self.database.get_event_from_handle(death_ref.ref)
+            death = get_date(death_event)
+
+        if birth == death == " ":
+            key = name
+        else:
+            key = "%s (%s - %s)" % (name, self.process_dates(birth), self.process_dates(death))
+
+        return IndexMark(key, INDEX_TYPE_ALP)
+
     def __date_place(self, event):
         """return the date and/or place an event happened"""
         if event:
@@ -203,26 +250,10 @@ class Printinfo:
     def print_details(self, person, style):
         """print descriptive details for a person"""
 
-        def process_dates(date):
-            try:
-                gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
-                gdate = gdate.strftime(" %Y")
-            except ParserError:
-                gdate = " Unknown"
-                gdate_text = date.split(maxsplit=1)
-
-            gdatestring = "{}{} {}".format(
-                gdate_text[0],
-                gdate,
-                "" if len(gdate_text) <= 1 else gdate_text[-1]
-            )
-            return gdatestring
-
-
         bdate = self.__date_place(get_birth_or_fallback(self.database, person))
         if bdate:
             self.doc.start_paragraph(style)
-            self.doc.write_text(process_dates(bdate))
+            self.doc.write_text(self.process_dates(bdate))
             self.doc.end_paragraph()
 
         ddate = self.__date_place(get_death_or_fallback(self.database, person))
@@ -231,7 +262,7 @@ class Printinfo:
             self.doc.start_paragraph(style)
             self.doc.write_text(
                 "{}{}".format(
-                    process_dates(ddate),
+                    self.process_dates(ddate),
                     " ({})".format(age) if age else ""
                 )
             )
@@ -250,7 +281,7 @@ class Printinfo:
         display_num = "{} ".format(display_num) if display_num else ""
         person_style = person_style or ("CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple")
         self.doc.start_paragraph(person_style, display_num if main_entry else "")
-        mark = utils.get_person_mark(self.database, person)
+        mark = self.get_person_mark(person)
         self.doc.start_bold() if main_entry else None
         display_name = self._name_display.display(person)
         self.doc.write_text(
@@ -295,7 +326,7 @@ class Printinfo:
         # Person and their family have already been printed so
         # print reference here
         if person:
-            mark = utils.get_person_mark(self.database, person)
+            mark = self.get_person_mark(person)
             self.doc.start_paragraph(style)
             name = self._name_display.display(person)
             self.doc.write_text(
@@ -708,7 +739,7 @@ class CompactDetailedDescendantReport(Report):
             child_name = self._name_display.display(child)
             if not child_name:
                 child_name = self._("Unknown")
-            child_mark = utils.get_person_mark(self._db, child)
+            child_mark = self.print_people.get_person_mark(child)
 
             prefix = ""
             for family_handle in child.get_family_handle_list():
