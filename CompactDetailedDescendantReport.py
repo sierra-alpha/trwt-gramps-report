@@ -192,10 +192,10 @@ class Printinfo:
 
         key = "{}{}".format(
             name,
-            "({}{}{})".format(
-                "b. {}".format(birth) or "",
-                " - " if birth and death else "",
-                "d. {}".format(death) or ""
+            " ({}{}{})".format(
+                "b.{}".format(birth) if birth else "",
+                "-" if birth and death else "",
+                "d.{}".format(death) if death else ""
             ) if birth or death else ""
         )
 
