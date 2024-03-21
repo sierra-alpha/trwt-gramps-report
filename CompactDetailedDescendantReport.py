@@ -176,28 +176,29 @@ class Printinfo:
                 return _("%(str1)s, %(str2)s") % {"str1": surname, "str2": first}
 
         name = get_name(person)
-        birth = None
-        death = None
-        key = ""
+        # birth = None
+        # death = None
+        # key = ""
 
-        birth_ref = person.get_birth_ref()
-        if birth_ref:
-            birth_event = self.database.get_event_from_handle(birth_ref.ref)
-            birth = birth_event.get_date_object().get_year()
+        # birth_ref = person.get_birth_ref()
+        # if birth_ref:
+        #     birth_event = self.database.get_event_from_handle(birth_ref.ref)
+        #     birth = birth_event.get_date_object().get_year()
 
-        death_ref = person.get_death_ref()
-        if death_ref:
-            death_event = self.database.get_event_from_handle(death_ref.ref)
-            death = death_event.get_date_object().get_year()
+        # death_ref = person.get_death_ref()
+        # if death_ref:
+        #     death_event = self.database.get_event_from_handle(death_ref.ref)
+        #     death = death_event.get_date_object().get_year()
 
-        key = "{}{}".format(
-            name,
-            " ({}{}{})".format(
-                "b.{}".format(birth) if birth else "",
-                "-" if birth and death else "",
-                "d.{}".format(death) if death else ""
-            ) if birth or death else ""
-        )
+        # key = "{}{}".format(
+        #     name,
+        #     " ({}{}{})".format(
+        #         "b.{}".format(birth) if birth else "",
+        #         "-" if birth and death else "",
+        #         "d.{}".format(death) if death else ""
+        #     ) if birth or death else ""
+        # )
+        key = "{} {}...".format(name, self.dnumber.get(person.handle) or "")
 
         return IndexMark(key, INDEX_TYPE_ALP)
 
@@ -495,9 +496,11 @@ class CompactDetailedDescendantReport(Report):
         """Filter for Henry numbering"""
         if (not person_handle) or (cur_gen > self.max_generations):
             return
-
-        # If we're a double cousin somehow then we'll append the next number also
-        self.dnumber[person_handle] = ", ".join([x for x in [self.dnumber.get(person_handle), pid] if x])
+        if person_handle in self.dnumber:
+            if self.dnumber[person_handle] > pid:
+                self.dnumber[person_handle] = pid
+        else:
+            self.dnumber[person_handle] = pid
         self.map[index] = person_handle
 
         if len(self.gen_keys) < cur_gen:
@@ -548,7 +551,18 @@ class CompactDetailedDescendantReport(Report):
         """Filter for d'Aboville numbering"""
         if (not person_handle) or (cur_gen > self.max_generations):
             return
-        self.dnumber[person_handle] = pid
+
+        # If we're a double cousin somehow then we'll append the next number also
+        self.dnumber[person_handle] = ", ".join(
+            [
+                x for x in
+                [
+                    self.dnumber.get(person_handle),
+                    "({})".format(pid) if self.dnumber.get(person_handle) else pid
+                ]
+                if x
+            ]
+        )
         self.map[index] = person_handle
 
         if len(self.gen_keys) < cur_gen:
