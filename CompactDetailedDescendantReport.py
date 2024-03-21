@@ -495,11 +495,9 @@ class CompactDetailedDescendantReport(Report):
         """Filter for Henry numbering"""
         if (not person_handle) or (cur_gen > self.max_generations):
             return
-        if person_handle in self.dnumber:
-            if self.dnumber[person_handle] > pid:
-                self.dnumber[person_handle] = pid
-        else:
-            self.dnumber[person_handle] = pid
+
+        # If we're a double cousin somehow then we'll append the next number also
+        self.dnumber[person_handle] = ", ".join([x for x in [self.dnumber.get(person_handle), pid] if x])
         self.map[index] = person_handle
 
         if len(self.gen_keys) < cur_gen:
