@@ -114,7 +114,6 @@ from gramps.gen.proxy import CacheProxyDb
 EMPTY_ENTRY = "_____________"
 HENRY = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-
 # ------------------------------------------------------------------------
 #
 # Printinfo
@@ -176,28 +175,6 @@ class Printinfo:
                 return _("%(str1)s, %(str2)s") % {"str1": surname, "str2": first}
 
         name = get_name(person)
-        # birth = None
-        # death = None
-        # key = ""
-
-        # birth_ref = person.get_birth_ref()
-        # if birth_ref:
-        #     birth_event = self.database.get_event_from_handle(birth_ref.ref)
-        #     birth = birth_event.get_date_object().get_year()
-
-        # death_ref = person.get_death_ref()
-        # if death_ref:
-        #     death_event = self.database.get_event_from_handle(death_ref.ref)
-        #     death = death_event.get_date_object().get_year()
-
-        # key = "{}{}".format(
-        #     name,
-        #     " ({}{}{})".format(
-        #         "b.{}".format(birth) if birth else "",
-        #         "-" if birth and death else "",
-        #         "d.{}".format(death) if death else ""
-        #     ) if birth or death else ""
-        # )
         key = "{} {}...".format(name, self.dnumber.get(person.handle) or "")
 
         return IndexMark(key, INDEX_TYPE_ALP)
@@ -547,22 +524,11 @@ class CompactDetailedDescendantReport(Report):
                 )
                 index += 1
 
-    def apply_daboville_filter(self, person_handle, index, pid, cur_gen=1):
+    def apply_daboville_filter(self, person_handle, index, child_num, cur_gen=1):
         """Filter for d'Aboville numbering"""
         if (not person_handle) or (cur_gen > self.max_generations):
             return
 
-        # If we're a double cousin somehow then we'll append the next number also
-        self.dnumber[person_handle] = ", ".join(
-            [
-                x for x in
-                [
-                    self.dnumber.get(person_handle),
-                    "({})".format(pid) if self.dnumber.get(person_handle) else pid
-                ]
-                if x
-            ]
-        )
         self.map[index] = person_handle
 
         if len(self.gen_keys) < cur_gen:
@@ -571,13 +537,58 @@ class CompactDetailedDescendantReport(Report):
             self.gen_keys[cur_gen - 1].append(index)
 
         person = self._db.get_person_from_handle(person_handle)
+
+        families_as_child = [
+            self._db.get_family_from_handle(x) for x in person.get_parent_family_handle_list()
+        ]
+        is_not_child_of_multiple_fams = len(families_as_child) <= 1
+        number = "" if is_not_child_of_multiple_fams else "{"
+        for fam_idx, family_as_child in enumerate(families_as_child):
+            mother_num = self.dnumber.get(family_as_child.get_mother_handle())
+            father_num = self.dnumber.get(family_as_child.get_father_handle())
+            number += "" if is_not_child_of_multiple_fams else "{}{}:[".format(
+                ", " if fam_idx > 0 else "", chr(ord('a') + (fam_idx % 26))
+            )
+            if mother_num and father_num:
+                # We're related twice to the top person
+                # find the common number
+                split_idx = None
+                for  idx, (x, y) in enumerate(zip(mother_num, father_num)):
+                    if x == y:
+                        number += x
+                    else:
+                        split_idx = idx
+                        break
+                number += "({}).{}".format(
+                    "|".join(
+                        sorted(
+                            [mother_num[split_idx:], father_num[split_idx:]],
+                            key=lambda x: int(x.split(".")[-1])
+                        )
+                    ),
+                    child_num
+                )
+            elif mother_num:
+                number += "{}.{}".format(mother_num, child_num)
+            elif father_num:
+                number += "{}.{}".format(father_num, child_num)
+            elif cur_gen == 1:
+                # raise ReportError("{}{}{}".format(number, mother_num, father_num))
+                number += child_num
+
+            number += "" if is_not_child_of_multiple_fams else "]"
+
+        number += "" if is_not_child_of_multiple_fams else "}"
+        self.dnumber[person_handle] = number
+
+
         index = 1
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
             for child_ref in family.get_child_ref_list():
                 _ix = max(self.map)
                 self.apply_daboville_filter(
-                    child_ref.ref, _ix + 1, pid + "." + str(index), cur_gen + 1
+                    child_ref.ref, _ix + 1, index, cur_gen + 1
                 )
                 index += 1
 
@@ -639,7 +650,7 @@ class CompactDetailedDescendantReport(Report):
         person = self._db.get_person_from_handle(person_handle)
         person_dnum = self.dnumber[person_handle]
 
-        if person_dnum != 1 and not any(
+        if person_dnum != "1" and not any(
                 y for x in person.get_family_handle_list()
                 for y in self._db.get_family_from_handle(x).get_child_ref_list()
         ):
