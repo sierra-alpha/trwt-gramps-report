@@ -65,15 +65,12 @@ from gramps.gen.const import GRAMPS_LOCALE as glocale
 
 _ = glocale.translation.gettext
 from gramps.gen.errors import ReportError
-from gramps.gen.lib import FamilyRelType, Person, NoteType
-from gramps.gen.utils.alive import probably_alive
+from gramps.gen.lib import FamilyRelType
 from gramps.gen.datehandler import get_date
 
 from gramps.gen.utils.db import (
     get_birth_or_fallback,
     get_death_or_fallback,
-    get_marriage_or_fallback,
-    get_divorce_or_fallback,
 )
 from gramps.gen.plug.menu import (
     BooleanOption,
@@ -99,7 +96,6 @@ from gramps.gen.plug.report import endnotes
 from gramps.gen.plug.report import utils
 from gramps.gen.plug.report import MenuReportOptions
 from gramps.gen.plug.report import stdoptions
-from gramps.plugins.lib.libnarrate import Narrator
 from gramps.gen.display.place import displayer as _pd
 from gramps.gen.display.name import displayer as _nd
 from gramps.gen.proxy import CacheProxyDb
@@ -111,7 +107,6 @@ from gramps.gen.proxy import CacheProxyDb
 # Constants
 #
 # ------------------------------------------------------------------------
-EMPTY_ENTRY = "_____________"
 HENRY = "123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 # ------------------------------------------------------------------------
@@ -175,7 +170,8 @@ class Printinfo:
                 return _("%(str1)s, %(str2)s") % {"str1": surname, "str2": first}
 
         name = get_name(person)
-        key = "{} {}...".format(name, self.dnumber.get(person.handle) or "")
+        index_text = self.dnumber.get(person.handle, "")
+        key = "{} {}...".format(name, "#:{}".format(index_text) if index_text else "")
 
         return IndexMark(key, INDEX_TYPE_ALP)
 
@@ -369,24 +365,14 @@ class CompactDetailedDescendantReport(Report):
 
         database        - the Gramps database instance
         options         - instance of the Options class for this report
-        user            - a gen.user.User() instance
 
         This report needs the following parameters (class variables)
         that come in the options class.
 
         gen           - Maximum number of generations to include.
         pagebgg       - Whether to include page breaks between generations.
-        pageben       - Whether to include page break before End Notes.
         listc         - Whether to list children.
-        usecall       - Whether to use the call name as the first name.
-        repplace      - Whether to replace missing Places with ___________.
-        repdate       - Whether to replace missing Dates with ___________.
-        computeage    - Whether to compute age.
         numbering     - The descendancy numbering system to be utilized.
-        incnames      - Whether to include other names.
-        incssign      - Whether to include a sign ('+') before the
-                            descendant number in the child-list
-                            to indicate a child has succession.
         pid           - The Gramps ID of the center person for the report.
         name_format   - Preferred format to display names
         incl_private  - Whether to include private data
@@ -397,7 +383,6 @@ class CompactDetailedDescendantReport(Report):
 
         self.map = {}
         self.printed_people_refs = {}
-        self._user = user
 
         menu = options.menu
         get_option_by_name = menu.get_option_by_name
@@ -414,15 +399,8 @@ class CompactDetailedDescendantReport(Report):
 
         self.max_generations = get_value("gen")
         self.pgbrk = get_value("pagebbg")
-        self.pgbrkenotes = get_value("pageben")
         self.listchildren = get_value("listc")
-        use_call = get_value("usecall")
-        blankplace = get_value("repplace")
-        blankdate = get_value("repdate")
-        self.calcageflag = get_value("computeage")
         self.numbering = get_value("numbering")
-        self.inc_names = get_value("incnames")
-        self.inc_ssign = get_value("incssign")
 
         pid = get_value("pid")
         self.center_person = self._db.get_person_from_gramps_id(pid)
@@ -430,21 +408,8 @@ class CompactDetailedDescendantReport(Report):
             raise ReportError(_("Person %s is not in the Database") % pid)
 
         self.gen_handles = {}
-        self.prev_gen_handles = {}
         self.gen_keys = []
         self.dnumber = {}
-        self.dmates = {}
-        self.numbers_printed = list()
-
-        if blankdate:
-            empty_date = EMPTY_ENTRY
-        else:
-            empty_date = ""
-
-        if blankplace:
-            empty_place = EMPTY_ENTRY
-        else:
-            empty_place = ""
 
         if self.numbering == "Henry":
             self.apply_henry_filter(self.center_person.get_handle(), 1, "1")
@@ -456,8 +421,6 @@ class CompactDetailedDescendantReport(Report):
             raise AttributeError("no such numbering: '%s'" % self.numbering)
 
         stdoptions.run_name_format_option(self, menu)
-
-        self.place_format = menu.get_option_by_name("place_format").get_value()
 
         lifespan = menu.get_option_by_name("lifespan").get_value()
 
@@ -696,65 +659,6 @@ class CompactDetailedDescendantReport(Report):
                 if self.listchildren:
                     self.__write_children(family, person)
 
-
-    def write_event(self, event_ref):
-        """write out the details of an event"""
-        text = ""
-        event = self._db.get_event_from_handle(event_ref.ref)
-
-        date = event.get_date_object().get_year()
-
-        place = _pd.display_event(self._db, event, self.place_format)
-
-        self.doc.start_paragraph("CDDR-MoreDetails")
-        event_name = self._get_type(event.get_type())
-        if date and place:
-            # Translators: needed for Arabic, ignore otherwise
-            text += self._("%(str1)s, %(str2)s") % {"str1": date, "str2": place}
-        elif date:
-            text += "%s" % date
-        elif place:
-            text += "%s" % self._(place)
-
-        if event.get_description():
-            if text:
-                text += ". "
-            text += event.get_description()
-
-        text += self.endnotes(event)
-
-        if text:
-            text += ". "
-
-        # Translators: needed for French, ignore otherwise
-        text = self._("%(str1)s: %(str2)s") % {"str1": self._(event_name), "str2": text}
-
-        self.doc.write_text_citation(text)
-
-        self.doc.end_paragraph()
-
-    def __get_mate_names(self, family):
-        """get the names of the parents in a family"""
-        mother_handle = family.get_mother_handle()
-        if mother_handle:
-            mother = self._db.get_person_from_handle(mother_handle)
-            mother_name = self._name_display.display(mother)
-            if not mother_name:
-                mother_name = self._("Unknown")
-        else:
-            mother_name = self._("Unknown")
-
-        father_handle = family.get_father_handle()
-        if father_handle:
-            father = self._db.get_person_from_handle(father_handle)
-            father_name = self._name_display.display(father)
-            if not father_name:
-                father_name = self._("Unknown")
-        else:
-            father_name = self._("Unknown")
-
-        return mother_name, father_name
-
     def __write_children(self, family, person):
         """
         List the children for the given family.
@@ -852,55 +756,6 @@ class CompactDetailedDescendantReport(Report):
 
         self.doc.end_table()
 
-    def __write_family_events(self, family):
-        """
-        List the events for the given family.
-        """
-        if not family.get_event_ref_list():
-            return
-
-        mother_name, father_name = self.__get_mate_names(family)
-
-        first = True
-        for event_ref in family.get_event_ref_list():
-            if first:
-                self.doc.start_paragraph("CDDR-MoreHeader")
-                self.doc.write_text(
-                    self._("More about %(mother_name)s and %(father_name)s:")
-                    % {"mother_name": mother_name, "father_name": father_name}
-                )
-                self.doc.end_paragraph()
-                first = False
-            self.write_event(event_ref)
-        return first
-
-    def __write_family_attrs(self, family, first):
-        """
-        List the attributes for the given family.
-        """
-        attrs = family.get_attribute_list()
-
-        if first and attrs:
-            mother_name, father_name = self.__get_mate_names(family)
-
-            self.doc.start_paragraph("CDDR-MoreHeader")
-            self.doc.write_text(
-                self._("More about %(mother_name)s and %(father_name)s:")
-                % {"mother_name": mother_name, "father_name": father_name}
-            )
-            self.doc.end_paragraph()
-
-        for attr in attrs:
-            self.doc.start_paragraph("CDDR-MoreDetails")
-            attr_name = self._get_type(attr.get_type())
-            text = self._("%(type)s: %(value)s%(endnotes)s") % {
-                "type": self._(attr_name),
-                "value": attr.get_value(),
-                "endnotes": self.endnotes(attr),
-            }
-            self.doc.write_text_citation(text)
-            self.doc.end_paragraph()
-
     def endnotes(self, obj):
         """write out any endnotes/footnotes"""
         if not obj:
@@ -980,10 +835,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         pagebbg.set_help(_("Whether to start a new page after each generation."))
         add_option("pagebbg", pagebbg)
 
-        pageben = BooleanOption(_("Page break before end notes"), False)
-        pageben.set_help(_("Whether to start a new page before the end notes."))
-        add_option("pageben", pageben)
-
         category = _("Report Options (2)")
         add_option = partial(menu.add_option, category)
 
@@ -1003,14 +854,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
 
         add_option = partial(menu.add_option, _("Content"))
 
-        computeage = BooleanOption(_("Compute death age"), True)
-        computeage.set_help(_("Whether to compute a person's age at death."))
-        add_option("computeage", computeage)
-
-        usecall = BooleanOption(_("Use callname for common name"), False)
-        usecall.set_help(_("Whether to use the call name as the first name."))
-        add_option("usecall", usecall)
-
         # What to include
 
         add_option = partial(menu.add_option, _("Include"))
@@ -1018,33 +861,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         listc = BooleanOption(_("Include children"), True)
         listc.set_help(_("Whether to list children."))
         add_option("listc", listc)
-
-        incnames = BooleanOption(_("Include alternative names"), False)
-        incnames.set_help(_("Whether to include other names."))
-        add_option("incnames", incnames)
-
-        incssign = BooleanOption(
-            _("Include sign of succession ('+') in child-list"), True
-        )
-        incssign.set_help(
-            _(
-                "Whether to include a sign ('+') before the"
-                " descendant number in the child-list to indicate"
-                " a child has succession."
-            )
-        )
-        add_option("incssign", incssign)
-
-        # How to handle missing information
-        add_option = partial(menu.add_option, _("Missing information"))
-
-        repplace = BooleanOption(_("Replace missing places with ______"), False)
-        repplace.set_help(_("Whether to replace missing Places with blanks."))
-        add_option("repplace", repplace)
-
-        repdate = BooleanOption(_("Replace missing dates with ______"), False)
-        repdate.set_help(_("Whether to replace missing Dates with blanks."))
-        add_option("repdate", repdate)
 
     def make_default_style(self, default_style):
         """Make the default output style for the Detailed Ancestral Report"""
