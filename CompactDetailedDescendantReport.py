@@ -101,7 +101,6 @@ from gramps.gen.display.name import displayer as _nd
 from gramps.gen.proxy import CacheProxyDb
 
 
-
 # ------------------------------------------------------------------------
 #
 # Constants
@@ -137,7 +136,7 @@ class Printinfo:
         self.dnumber = dnumber
         # variables
         self.deathage = deathage
-        self.rlocale = rlocale # Temp for now to see if I need to fix it
+        self.rlocale = rlocale  # Temp for now to see if I need to fix it
         self._ = rlocale.translation.sgettext  # needed for English
         self._get_date = rlocale.get_date
         self.pformat = pformat
@@ -221,7 +220,8 @@ class Printinfo:
             if span and span.is_valid():
                 if span:
                     age = span.get_repr(dlocale=self.rlocale)
-                else: age = None
+                else:
+                    age = None
             else:
                 age = None
         else:
@@ -241,9 +241,7 @@ class Printinfo:
                 gdate_text = date.split(maxsplit=1)
 
             gdatestring = "{}{} {}".format(
-                gdate_text[0],
-                gdate,
-                "" if len(gdate_text) <= 1 else gdate_text[-1]
+                gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
             )
             return gdatestring
 
@@ -258,55 +256,63 @@ class Printinfo:
             age = self.__get_age_at_death(person)
             self.doc.start_paragraph(style)
             self.doc.write_text(
-                "{}{}".format(
-                    process_dates(ddate),
-                    " ({})".format(age) if age else ""
-                )
+                "{}{}".format(process_dates(ddate), " ({})".format(age) if age else "")
             )
             self.doc.end_paragraph()
 
     def print_person(
-            self,
-            person,
-            main_entry=True,
-            spouse_relationship=None,
-            person_style=None,
-            person_deets_style=None
+        self,
+        person,
+        main_entry=True,
+        spouse_relationship=None,
+        person_style=None,
+        person_deets_style=None,
     ):
         """print the person"""
 
-        spouse_relationship_text = {
-            FamilyRelType.MARRIED: "M.",
-            FamilyRelType.CIVIL_UNION: "CU.",
-        }.get(spouse_relationship.value, "") if spouse_relationship else ""
+        spouse_relationship_text = (
+            {
+                FamilyRelType.MARRIED: "M.",
+                FamilyRelType.CIVIL_UNION: "CU.",
+            }.get(spouse_relationship.value, "")
+            if spouse_relationship
+            else ""
+        )
 
         display_num = self.dnumber.get(person.handle)
         display_num = "{} ".format(display_num) if display_num else ""
-        person_style = person_style or ("CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple")
+        person_style = person_style or (
+            "CDDR-First-Entry" if main_entry else "CDDR-ChildListSimple"
+        )
         self.doc.start_paragraph(person_style, display_num if main_entry else "")
         mark = self.get_person_mark(person)
         self.doc.start_bold() if main_entry else None
         display_name = self._name_display.display(person)
         self.doc.write_text(
             "={} {}{}".format(
-                " ({})".format(spouse_relationship_text) if spouse_relationship_text else "",
+                " ({})".format(spouse_relationship_text)
+                if spouse_relationship_text
+                else "",
                 display_name,
-                ". See reference {} for their individual record".format(
-                    display_num
-                ) if display_num else ""
-            ) if spouse_relationship else display_name,
-            mark
+                ". See reference {} for their individual record".format(display_num)
+                if display_num
+                else "",
+            )
+            if spouse_relationship
+            else display_name,
+            mark,
         )
         self.doc.end_bold() if main_entry else None
         self.doc.end_paragraph()
         self.print_details(
             person,
-            person_deets_style or (
-                "CDDR-First-Details" if main_entry else "CDDR-ChildListSimple"
-            )
+            person_deets_style
+            or ("CDDR-First-Details" if main_entry else "CDDR-ChildListSimple"),
         )
 
-    def print_spouse(self, spouse_handle, relationship, person_style=None, person_deets_style=None):
+    def print_spouse(
+        self, spouse_handle, relationship, person_style=None, person_deets_style=None
+    ):
         """print the spouse"""
         # Currently print_spouses is the same for all numbering systems.
         if spouse_handle:
@@ -316,13 +322,11 @@ class Printinfo:
                 main_entry=False,
                 spouse_relationship=relationship,
                 person_style=person_style or "CDDR-First-Entry-Spouse",
-                person_deets_style=person_deets_style or "CDDR-First-Details-Spouse"
+                person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
             )
         else:
             self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
-            self.doc.write_text(
-                self._("= %(spouse)s") % {"spouse": self._("Unknown")}
-            )
+            self.doc.write_text(self._("= %(spouse)s") % {"spouse": self._("Unknown")})
             self.doc.end_paragraph()
 
     def print_reference(self, person, display_num, style, is_spouse=False):
@@ -339,15 +343,13 @@ class Printinfo:
                     name,
                     "{} {}.".format(
                         display_num,
-                        (
-                            "for details" if not is_spouse
-                            else "for family details"
-                        )
-                    )
+                        ("for details" if not is_spouse else "for family details"),
+                    ),
                 ),
                 mark,
             )
             self.doc.end_paragraph()
+
 
 # ------------------------------------------------------------------------
 #
@@ -509,21 +511,26 @@ class CompactDetailedDescendantReport(Report):
         person = self._db.get_person_from_handle(person_handle)
 
         families_as_child = [
-            self._db.get_family_from_handle(x) for x in person.get_parent_family_handle_list()
+            self._db.get_family_from_handle(x)
+            for x in person.get_parent_family_handle_list()
         ]
         is_not_child_of_multiple_fams = len(families_as_child) <= 1
         number = "" if is_not_child_of_multiple_fams else "{"
         for fam_idx, family_as_child in enumerate(families_as_child):
             mother_num = self.dnumber.get(family_as_child.get_mother_handle())
             father_num = self.dnumber.get(family_as_child.get_father_handle())
-            number += "" if is_not_child_of_multiple_fams else "{}{}:[".format(
-                ", " if fam_idx > 0 else "", chr(ord('a') + (fam_idx % 26))
+            number += (
+                ""
+                if is_not_child_of_multiple_fams
+                else "{}{}:[".format(
+                    ", " if fam_idx > 0 else "", chr(ord("a") + (fam_idx % 26))
+                )
             )
             if mother_num and father_num:
                 # We're related twice to the top person
                 # find the common number
                 split_idx = None
-                for  idx, (x, y) in enumerate(zip(mother_num, father_num)):
+                for idx, (x, y) in enumerate(zip(mother_num, father_num)):
                     if x == y:
                         number += x
                     else:
@@ -533,10 +540,10 @@ class CompactDetailedDescendantReport(Report):
                     "|".join(
                         sorted(
                             [mother_num[split_idx:], father_num[split_idx:]],
-                            key=lambda x: int(x.split(".")[-1])
+                            key=lambda x: int(x.split(".")[-1]),
                         )
                     ),
-                    child_num
+                    child_num,
                 )
             elif mother_num:
                 number += "{}.{}".format(mother_num, child_num)
@@ -551,15 +558,12 @@ class CompactDetailedDescendantReport(Report):
         number += "" if is_not_child_of_multiple_fams else "}"
         self.dnumber[person_handle] = number
 
-
         index = 1
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
             for child_ref in family.get_child_ref_list():
                 _ix = max(self.map)
-                self.apply_daboville_filter(
-                    child_ref.ref, _ix + 1, index, cur_gen + 1
-                )
+                self.apply_daboville_filter(child_ref.ref, _ix + 1, index, cur_gen + 1)
                 index += 1
 
     def write_report(self):
@@ -591,9 +595,12 @@ class CompactDetailedDescendantReport(Report):
 
             # Need to catch an empty generation
             if generation > 0 and not any(
-                    z for x in gen_keys
-                    for y in self._db.get_person_from_handle(self.map[x]).get_family_handle_list()
-                    for z in self._db.get_family_from_handle(y).get_child_ref_list()
+                z
+                for x in gen_keys
+                for y in self._db.get_person_from_handle(
+                    self.map[x]
+                ).get_family_handle_list()
+                for z in self._db.get_family_from_handle(y).get_child_ref_list()
             ):
 
                 self.doc.start_paragraph("CDDR-ChildListSimple")
@@ -621,8 +628,9 @@ class CompactDetailedDescendantReport(Report):
         person_dnum = self.dnumber[person_handle]
 
         if person_dnum != "1" and not any(
-                y for x in person.get_family_handle_list()
-                for y in self._db.get_family_from_handle(x).get_child_ref_list()
+            y
+            for x in person.get_family_handle_list()
+            for y in self._db.get_family_from_handle(x).get_child_ref_list()
         ):
             # If we have no descendants and we're not the first person then
             # we'll be already printed elsewhere so we can skip
@@ -645,7 +653,7 @@ class CompactDetailedDescendantReport(Report):
                     spouse,
                     self.printed_people_refs[spouse_handle],
                     "CDDR-First-Entry-Spouse",
-                    is_spouse=True
+                    is_spouse=True,
                 )
             else:
                 self.print_people.print_spouse(spouse_handle, family.get_relationship())
@@ -673,21 +681,20 @@ class CompactDetailedDescendantReport(Report):
         spouse_name = (
             self._name_display.display(
                 self.database.get_person_from_handle(spouse_handle)
-            ) if spouse_handle
+            )
+            if spouse_handle
             else self._("Unknown")
         )
         self.doc.start_paragraph("CDDR-ChildTitle")
         self.doc.write_text(
             "Children of {} and {}".format(
-                self._name_display.display(person),
-                spouse_name
+                self._name_display.display(person), spouse_name
             )
         )
         self.doc.end_paragraph()
 
         self.doc.start_table(
-            format("child-table-{}".format(family.gramps_id)),
-            "CDDR-ChildTable"
+            format("child-table-{}".format(family.gramps_id)), "CDDR-ChildTable"
         )
         for child_ref in family.get_child_ref_list():
             self.doc.start_row()
@@ -708,9 +715,7 @@ class CompactDetailedDescendantReport(Report):
             self.doc.start_cell("CDDR-ChildTableCell")
             self.doc.start_paragraph("CDDR-ChildListLeftSimple")
             if child_handle in self.dnumber:
-                self.doc.write_text(
-                    prefix + str(self.dnumber[child_handle])
-                )
+                self.doc.write_text(prefix + str(self.dnumber[child_handle]))
             else:
                 self.doc.write_text(prefix)
             self.doc.end_paragraph()
@@ -722,7 +727,9 @@ class CompactDetailedDescendantReport(Report):
                 self.doc.write_text("%s" % child_name, child_mark)
                 self.doc.end_paragraph()
             else:
-                self.print_people.print_person(child, main_entry=False, person_deets_style="CDDR-First-Details")
+                self.print_people.print_person(
+                    child, main_entry=False, person_deets_style="CDDR-First-Details"
+                )
                 for family_handle in child.get_family_handle_list():
 
                     family = self._db.get_family_from_handle(family_handle)
@@ -735,7 +742,7 @@ class CompactDetailedDescendantReport(Report):
                             spouse,
                             self.printed_people_refs[spouse_handle],
                             "CDDR-ChildListSimpleIndented",
-                            is_spouse=True
+                            is_spouse=True,
                         )
                     else:
                         self.print_people.print_spouse(
@@ -746,7 +753,8 @@ class CompactDetailedDescendantReport(Report):
 
                         if spouse_handle and spouse_handle not in self.dnumber:
                             spouse_num = "= of: {} {}".format(
-                                self.dnumber[child.handle], self._name_display.display(person)
+                                self.dnumber[child.handle],
+                                self._name_display.display(person),
                             )
                             self.printed_people_refs[spouse_handle] = spouse_num
 
@@ -965,7 +973,6 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_description(_("The style used for the first level spouse details."))
         default_style.add_paragraph_style("CDDR-First-Details-Spouse", para)
 
-
         font = FontStyle()
         font.set(size=10, face=FONT_SANS_SERIF, bold=1)
         para = ParagraphStyle()
@@ -985,6 +992,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         default_style.add_paragraph_style("CDDR-MoreDetails", para)
 
         endnotes.add_endnote_styles(default_style)
+
 
 if __name__ == "main":
     options = CompactDetailedDescendantOptions({})
