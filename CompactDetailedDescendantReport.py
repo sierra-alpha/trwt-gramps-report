@@ -237,7 +237,11 @@ class Printinfo:
                 gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
                 gdate = gdate.strftime(" %Y")
             except ParserError:
-                return ""
+                gdate = ""
+                gdate_text = [
+                    "{}.".format(date.split(".")[0]),
+                    date.rsplit("- ", maxsplit=1)[-1],
+                ]
 
             gdatestring = "{}{} {}".format(
                 gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
@@ -687,7 +691,8 @@ class CompactDetailedDescendantReport(Report):
         self.doc.start_paragraph("CDDR-ChildTitle")
         self.doc.write_text(
             "Children of {}{}".format(
-                self._name_display.display(person), " and {}".format(spouse_name) if spouse_name else ""
+                self._name_display.display(person),
+                " and {}".format(spouse_name) if spouse_name else "",
             )
         )
         self.doc.end_paragraph()
