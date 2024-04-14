@@ -238,9 +238,12 @@ class Printinfo:
                 gdate = gdate.strftime(" %Y")
             except ParserError:
                 gdate = ""
+                place_split = date.rsplit("- ", maxsplit=1)
+                if len(place_split) <= 1:
+                    return None
                 gdate_text = [
                     "{}.".format(date.split(".")[0]),
-                    date.rsplit("- ", maxsplit=1)[-1],
+                    place_split[-1],
                 ]
 
             gdatestring = "{}{} {}".format(
