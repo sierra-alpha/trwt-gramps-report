@@ -237,8 +237,7 @@ class Printinfo:
                 gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
                 gdate = gdate.strftime(" %Y")
             except ParserError:
-                gdate = " Unknown"
-                gdate_text = date.split(maxsplit=1)
+                return ""
 
             gdatestring = "{}{} {}".format(
                 gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
@@ -246,13 +245,13 @@ class Printinfo:
             return gdatestring
 
         bdate = self.__date_place(get_birth_or_fallback(self.database, person))
-        if bdate:
+        if bdate and process_dates(bdate):
             self.doc.start_paragraph(style)
             self.doc.write_text(process_dates(bdate))
             self.doc.end_paragraph()
 
         ddate = self.__date_place(get_death_or_fallback(self.database, person))
-        if ddate:
+        if ddate and process_dates(ddate):
             age = self.__get_age_at_death(person)
             self.doc.start_paragraph(style)
             self.doc.write_text(
