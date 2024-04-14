@@ -323,10 +323,10 @@ class Printinfo:
                 person_style=person_style or "CDDR-First-Entry-Spouse",
                 person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
             )
-        else:
-            self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
-            self.doc.write_text(self._("= %(spouse)s") % {"spouse": self._("Unknown")})
-            self.doc.end_paragraph()
+        # else:
+        #     self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
+        #     self.doc.write_text(self._("= %(spouse)s") % {"spouse": self._("Unknown")})
+        #     self.doc.end_paragraph()
 
     def print_reference(self, person, display_num, style, is_spouse=False):
         """print the reference"""
@@ -682,12 +682,12 @@ class CompactDetailedDescendantReport(Report):
                 self.database.get_person_from_handle(spouse_handle)
             )
             if spouse_handle
-            else self._("Unknown")
+            else ""
         )
         self.doc.start_paragraph("CDDR-ChildTitle")
         self.doc.write_text(
-            "Children of {} and {}".format(
-                self._name_display.display(person), spouse_name
+            "Children of {}{}".format(
+                self._name_display.display(person), " and {}".format(spouse_name) if spouse_name else ""
             )
         )
         self.doc.end_paragraph()
