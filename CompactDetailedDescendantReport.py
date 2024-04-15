@@ -266,6 +266,20 @@ class Printinfo:
             )
             self.doc.end_paragraph()
 
+        burial_ref = [
+            event
+            for event in person.get_event_ref_list()
+            if self.database.get_event_from_handle(event.ref).get_type().is_burial()
+        ]
+        if burial_ref:
+            event = self.database.get_event_from_handle(burial_ref[0].ref)
+            if event:
+                burial_date = self.__date_place(event)
+                if burial_date and process_dates(burial_date) and (process_dates(burial_date)[3:] not in process_dates(ddate)):
+                    self.doc.start_paragraph(style)
+                    self.doc.write_text(process_dates(burial_date))
+                    self.doc.end_paragraph()
+
     def print_person(
         self,
         person,
