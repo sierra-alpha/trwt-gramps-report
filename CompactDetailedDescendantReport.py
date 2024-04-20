@@ -65,7 +65,7 @@ from gramps.gen.const import GRAMPS_LOCALE as glocale
 
 _ = glocale.translation.gettext
 from gramps.gen.errors import ReportError
-from gramps.gen.lib import FamilyRelType
+from gramps.gen.lib import FamilyRelType, NoteType
 from gramps.gen.datehandler import get_date
 
 from gramps.gen.utils.db import (
@@ -279,6 +279,21 @@ class Printinfo:
                     self.doc.start_paragraph(style)
                     self.doc.write_text(process_dates(burial_date))
                     self.doc.end_paragraph()
+
+        notelist = person.get_note_list()
+        if len(notelist) > 0:
+            self.doc.start_paragraph(style)
+            # feature request 2356: avoid genitive form
+            self.doc.write_text(self._("Notes:"))
+            self.doc.end_paragraph()
+            for notehandle in notelist:
+                note = self.database.get_note_from_handle(notehandle)
+                self.doc.write_styled_note(
+                    note.get_styledtext(),
+                    note.get_format(),
+                    style,
+                    contains_html=(note.get_type() == NoteType.HTML_CODE),
+                )
 
     def print_person(
         self,
