@@ -729,6 +729,19 @@ class CompactDetailedDescendantReport(Report):
         )
         self.doc.end_paragraph()
 
+        notelist = family.get_note_list()
+        if len(notelist) > 0:
+            self.doc.start_paragraph("CDDR-Family-Notes-Title")
+            self.doc.write_text(self._("Family notes:"))
+            self.doc.end_paragraph()
+            for notehandle in notelist:
+                note = self.database.get_note_from_handle(notehandle)
+                self.doc.write_styled_note(
+                    note.get_styledtext(),
+                    note.get_format(),
+                    "CDDR-Family-Notes-Details"
+                )
+
         self.doc.start_table(
             format("child-table-{}".format(family.gramps_id)), "CDDR-ChildTable"
         )
@@ -940,8 +953,8 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         table = TableStyle()
         table.set_width(100)
         table.set_columns(2)
-        table.set_column_width(0, 25)
-        table.set_column_width(1, 75)
+        table.set_column_width(0, 27)
+        table.set_column_width(1, 73)
         table.set_description(_("The style used for the children list table."))
         default_style.add_table_style("CDDR-ChildTable", table)
 
@@ -1008,6 +1021,26 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.0)
         para.set_description(_("The style used for the first level spouse details."))
         default_style.add_paragraph_style("CDDR-First-Details-Spouse", para)
+
+        font = FontStyle()
+        font.set(size=8)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set_left_margin(1.75)  # in centimeters
+        para.set_top_margin(0.0)
+        para.set_bottom_margin(0.0)
+        para.set_description(_("The style used for the family details."))
+        default_style.add_paragraph_style("CDDR-Family-Notes-Title", para)
+
+        font = FontStyle()
+        font.set(size=8)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set_left_margin(1.75)  # in centimeters
+        para.set_top_margin(0.0)
+        para.set_bottom_margin(0.1)
+        para.set_description(_("The style used for the family details."))
+        default_style.add_paragraph_style("CDDR-Family-Notes-Details", para)
 
         font = FontStyle()
         font.set(size=10, face=FONT_SANS_SERIF, bold=1)
