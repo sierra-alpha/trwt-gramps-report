@@ -219,7 +219,7 @@ class Printinfo:
             span = death - birth
             if span and span.is_valid():
                 if span:
-                    age = span.get_repr(dlocale=self.rlocale)
+                    age = str(span.tuple()[0])
                 else:
                     age = None
             else:
@@ -262,7 +262,7 @@ class Printinfo:
             age = self.__get_age_at_death(person)
             self.doc.start_paragraph(style)
             self.doc.write_text(
-                "{}{}".format(process_dates(ddate), " ({})".format(age) if age else "")
+                "{}{}".format(process_dates(ddate), " (Age at death: {})".format(age) if age else "")
             )
             self.doc.end_paragraph()
 
