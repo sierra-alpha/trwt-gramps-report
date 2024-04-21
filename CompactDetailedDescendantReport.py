@@ -130,7 +130,7 @@ class Printinfo:
         pformat,
     ):
         # classes
-        self._name_display = name_display
+        self.display_name_tweaker = name_display
         self.doc = doc
         self.database = database
         self.dnumber = dnumber
@@ -150,25 +150,7 @@ class Printinfo:
         if not person:
             return None
 
-        def get_name(person):
-            """
-            Return a name string built from the components of the Name instance,
-            in the form of: surname, Firstname.
-            """
-            first = person.get_primary_name().get_first_name()
-            surname = person.get_primary_name().get_surname().upper()
-            if person.get_primary_name().get_suffix():
-                # Translators: needed for Arabic, ignore otherwise
-                return _("%(surname)s, %(first)s %(suffix)s") % {
-                    "surname": surname,
-                    "first": first,
-                    "suffix": person.get_primary_name().get_suffix(),
-                }
-            else:
-                # Translators: needed for Arabic, ignore otherwise
-                return _("%(str1)s, %(str2)s") % {"str1": surname, "str2": first}
-
-        name = get_name(person)
+        name = self.display_name_tweaker(person)
         index_text = self.dnumber.get(person.handle, "")
         key = "{} {}...".format(name, "#:{}".format(index_text) if index_text else "")
 
@@ -313,7 +295,7 @@ class Printinfo:
         self.doc.start_paragraph(person_style, display_num if main_entry else "")
         mark = self.get_person_mark(person)
         self.doc.start_bold() if main_entry else None
-        display_name = self._name_display.display(person)
+        display_name = self.display_name_tweaker(person)
         self.doc.write_text(
             "= {}{}".format(
                 display_name,
@@ -386,7 +368,7 @@ class Printinfo:
         if person:
             mark = self.get_person_mark(person)
             self.doc.start_paragraph(style)
-            name = self._name_display.display(person)
+            name = self.display_name_tweaker(person)
             self.doc.write_text(
                 "{}{}, see {}".format(
                     "= " if is_spouse else "",
@@ -485,11 +467,17 @@ class CompactDetailedDescendantReport(Report):
             self.database,
             self.dnumber,
             lifespan,
-            self._name_display,
+            self.display_name_tweaker,
             self._locale,
             pformat,
         )
         self.bibli = Bibliography(Bibliography.MODE_DATE | Bibliography.MODE_PAGE)
+
+    def display_name_tweaker(self, person):
+        name = self._name_display.display(person).replace("()", "").replace("(, ", "(")
+        if name.startswith(", "):
+            name = name[2:]
+        return name
 
     def apply_henry_filter(self, person_handle, index, pid, cur_gen=1):
         """Filter for Henry numbering"""
@@ -621,7 +609,7 @@ class CompactDetailedDescendantReport(Report):
         This function is called by the report system and writes the report.
         """
 
-        name = self._name_display.display_name(self.center_person.get_primary_name())
+        name = self.display_name_tweaker(self.center_person)
         if not name:
             name = self._("Unknown")
 
@@ -710,7 +698,7 @@ class CompactDetailedDescendantReport(Report):
 
                 if spouse_handle and spouse_handle not in self.dnumber:
                     spouse_num = "= of: {} {}".format(
-                        self.dnumber[person_handle], self._name_display.display(person)
+                        self.dnumber[person_handle], self.display_name_tweaker(person)
                     )
                     self.printed_people_refs[spouse_handle] = spouse_num
 
@@ -729,7 +717,7 @@ class CompactDetailedDescendantReport(Report):
 
         spouse_handle = utils.find_spouse(person, family)
         spouse_name = (
-            self._name_display.display(
+            self.display_name_tweaker(
                 self.database.get_person_from_handle(spouse_handle)
             )
             if spouse_handle
@@ -738,7 +726,7 @@ class CompactDetailedDescendantReport(Report):
         self.doc.start_paragraph("CDDR-ChildTitle")
         self.doc.write_text(
             "Children of {}{}".format(
-                self._name_display.display(person),
+                self.display_name_tweaker(person),
                 " and {}".format(spouse_name) if spouse_name else "",
             )
         )
@@ -764,7 +752,7 @@ class CompactDetailedDescendantReport(Report):
             self.doc.start_row()
             child_handle = child_ref.ref
             child = self._db.get_person_from_handle(child_handle)
-            child_name = self._name_display.display(child)
+            child_name = self.display_name_tweaker(child)
             if not child_name:
                 child_name = self._("Unknown")
             child_mark = self.print_people.get_person_mark(child)
@@ -818,7 +806,7 @@ class CompactDetailedDescendantReport(Report):
                         if spouse_handle and spouse_handle not in self.dnumber:
                             spouse_num = "= of: {} {}".format(
                                 self.dnumber[child.handle],
-                                self._name_display.display(person),
+                                self.display_name_tweaker(person),
                             )
                             self.printed_people_refs[spouse_handle] = spouse_num
 
