@@ -529,11 +529,13 @@ class CompactDetailedDescendantReport(Report):
         """Filter for Henry numbering"""
         if (not person_handle) or (cur_gen > self.max_generations):
             return
+
         if person_handle in self.dnumber:
             if self.dnumber[person_handle] > pid:
                 self.dnumber[person_handle] = pid
         else:
             self.dnumber[person_handle] = pid
+
         self.map[index] = person_handle
 
         if len(self.gen_keys) < cur_gen:
@@ -721,35 +723,35 @@ class CompactDetailedDescendantReport(Report):
             #
             return
 
-        self.print_people.print_person(person)
-
         if person_handle not in self.printed_people_refs:
             self.printed_people_refs[person_handle] = self.dnumber[person_handle]
 
-        for family_handle in person.get_family_handle_list():
-            family = self._db.get_family_from_handle(family_handle)
-            spouse_handle = utils.find_spouse(person, family)
+            self.print_people.print_person(person)
 
-            if spouse_handle in self.printed_people_refs:
-                # Just print a reference
-                spouse = self.database.get_person_from_handle(spouse_handle)
-                self.print_people.print_reference(
-                    spouse,
-                    self.printed_people_refs[spouse_handle],
-                    "CDDR-First-Entry-Spouse",
-                    is_spouse=True,
-                )
-            else:
-                self.print_people.print_spouse(spouse_handle, family)
+            for family_handle in person.get_family_handle_list():
+                family = self._db.get_family_from_handle(family_handle)
+                spouse_handle = utils.find_spouse(person, family)
 
-                if spouse_handle and spouse_handle not in self.dnumber:
-                    spouse_num = "= of: {} {}".format(
-                        self.dnumber[person_handle], self.display_name_tweaker(person)
+                if spouse_handle in self.printed_people_refs:
+                    # Just print a reference
+                    spouse = self.database.get_person_from_handle(spouse_handle)
+                    self.print_people.print_reference(
+                        spouse,
+                        self.printed_people_refs[spouse_handle],
+                        "CDDR-First-Entry-Spouse",
+                        is_spouse=True,
                     )
-                    self.printed_people_refs[spouse_handle] = spouse_num
+                else:
+                    self.print_people.print_spouse(spouse_handle, family)
 
-                if self.listchildren:
-                    self.__write_children(family, person)
+                    if spouse_handle and spouse_handle not in self.dnumber:
+                        spouse_num = "= of: {} {}".format(
+                            self.dnumber[person_handle], self.display_name_tweaker(person)
+                        )
+                        self.printed_people_refs[spouse_handle] = spouse_num
+
+                    if self.listchildren:
+                        self.__write_children(family, person)
 
     def __write_children(self, family, person):
         """
