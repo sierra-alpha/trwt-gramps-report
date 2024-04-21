@@ -299,20 +299,11 @@ class Printinfo:
         self,
         person,
         main_entry=True,
-        spouse_relationship=None,
+        spouse_family=None,
         person_style=None,
         person_deets_style=None,
     ):
         """print the person"""
-
-        spouse_relationship_text = (
-            {
-                FamilyRelType.MARRIED: "M.",
-                FamilyRelType.CIVIL_UNION: "CU.",
-            }.get(spouse_relationship.value, "")
-            if spouse_relationship
-            else ""
-        )
 
         display_num = self.dnumber.get(person.handle)
         display_num = "{} ".format(display_num) if display_num else ""
@@ -324,16 +315,13 @@ class Printinfo:
         self.doc.start_bold() if main_entry else None
         display_name = self._name_display.display(person)
         self.doc.write_text(
-            "={} {}{}".format(
-                " ({})".format(spouse_relationship_text)
-                if spouse_relationship_text
-                else "",
+            "= {}{}".format(
                 display_name,
                 ". See reference {} for their individual record".format(display_num)
                 if display_num
                 else "",
             )
-            if spouse_relationship
+            if spouse_family
             else display_name,
             mark,
         )
@@ -346,7 +334,7 @@ class Printinfo:
         )
 
     def print_spouse(
-        self, spouse_handle, relationship, person_style=None, person_deets_style=None
+        self, spouse_handle, family, person_style=None, person_deets_style=None
     ):
         """print the spouse"""
         # Currently print_spouses is the same for all numbering systems.
@@ -355,10 +343,37 @@ class Printinfo:
             self.print_person(
                 spouse,
                 main_entry=False,
-                spouse_relationship=relationship,
+                spouse_family=family,
                 person_style=person_style or "CDDR-First-Entry-Spouse",
                 person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
             )
+
+            cust_event_map = {
+                "Separation": "sep."
+            }
+
+            if family.get_event_ref_list():
+                self.doc.start_paragraph(
+                    person_deets_style or "CDDR-First-Details-Spouse",
+                )
+                self.doc.write_text("Recorded relationship details:")
+                self.doc.end_paragraph()
+                for event_ref in family.get_event_ref_list():
+                    event = self.database.get_event_from_handle(event_ref.ref)
+                    text = self.__date_place(event)
+                    text = (
+                        "div. (no recorded date)" if text == "div. "
+                        else "{} (no recorded dates)".format(cust_event_map.get(str(event.get_type()))) if text == "cust. "
+                        else "{}{}".format(cust_event_map.get(str(event.get_type())), text[4:]) if text.startswith("cust.")
+                        else text
+                    )
+                    self.doc.start_paragraph(
+                        "CDDR-First-Details-Spouse-Relationship-Deets",
+                    )
+                    self.doc.write_text(text)
+                    self.doc.end_paragraph()
+
+
         # else:
         #     self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
         #     self.doc.write_text(self._("= %(spouse)s") % {"spouse": self._("Unknown")})
@@ -691,7 +706,7 @@ class CompactDetailedDescendantReport(Report):
                     is_spouse=True,
                 )
             else:
-                self.print_people.print_spouse(spouse_handle, family.get_relationship())
+                self.print_people.print_spouse(spouse_handle, family)
 
                 if spouse_handle and spouse_handle not in self.dnumber:
                     spouse_num = "= of: {} {}".format(
@@ -796,7 +811,7 @@ class CompactDetailedDescendantReport(Report):
                     else:
                         self.print_people.print_spouse(
                             spouse_handle,
-                            family.get_relationship(),
+                            family,
                             person_style="CDDR-ChildListSimpleIndented",
                         )
 
@@ -1021,6 +1036,16 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_top_margin(0.0)
         para.set_description(_("The style used for the first level spouse details."))
         default_style.add_paragraph_style("CDDR-First-Details-Spouse", para)
+
+        font = FontStyle()
+        font.set(size=8)
+        para = ParagraphStyle()
+        para.set_font(font)
+        para.set(lmargin=1.25)
+        para.set_top_margin(0.0)
+        para.set_description(_("The style used for the first level spouse relationship details."))
+        default_style.add_paragraph_style("CDDR-First-Details-Spouse-Relationship-Deets", para)
+
 
         font = FontStyle()
         font.set(size=8)
