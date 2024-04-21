@@ -141,7 +141,7 @@ class Printinfo:
         self._get_date = rlocale.get_date
         self.pformat = pformat
 
-    def get_person_mark(self, person):
+    def get_person_mark(self, person, name_override=None):
         """
         Return a IndexMark that can be used to index a person in a report
 
@@ -150,7 +150,7 @@ class Printinfo:
         if not person:
             return None
 
-        name = self.display_name_tweaker(person)
+        name = name_override or self.display_name_tweaker(person)
         index_text = self.dnumber.get(person.handle, "")
         key = "{} {}...".format(name, "#:{}".format(index_text) if index_text else "")
 
@@ -214,6 +214,41 @@ class Printinfo:
     def print_details(self, person, style):
         """print descriptive details for a person"""
 
+        if person.get_alternate_names():
+            self.doc.start_paragraph(style, "aka. ")
+            alt_names = person.get_alternate_names()
+            for idx, alt_name in enumerate(alt_names):
+                name = "{}{}{}".format(
+                    alt_name.get_upper_name(),
+                    " ({}{}{})".format(
+                        alt_name.get_nick_name(),
+                        ", "
+                        if (alt_name.get_nick_name() and alt_name.get_call_name())
+                        else "",
+                        alt_name.get_call_name(),
+                    )
+                    if (alt_name.get_nick_name() or alt_name.get_call_name())
+                    else "",
+                    " {}".format(alt_name.get_suffix())
+                    if alt_name.get_suffix()
+                    else "",
+                )
+                mark = self.get_person_mark(
+                    person, name_override="{} [aka.]".format(name)
+                )
+                self.doc.write_text(
+                    "{}{}".format(
+                        " or "
+                        if len(alt_names) == idx + 1 and idx > 0
+                        else ", "
+                        if idx > 1
+                        else "",
+                        name,
+                    ),
+                    mark,
+                )
+            self.doc.end_paragraph()
+
         def process_dates(date):
             try:
                 gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
@@ -244,7 +279,10 @@ class Printinfo:
             age = self.__get_age_at_death(person)
             self.doc.start_paragraph(style)
             self.doc.write_text(
-                "{}{}".format(process_dates(ddate), " (Age at death: {})".format(age) if age else "")
+                "{}{}".format(
+                    process_dates(ddate),
+                    " (Age at death: {})".format(age) if age else "",
+                )
             )
             self.doc.end_paragraph()
 
@@ -257,7 +295,11 @@ class Printinfo:
             event = self.database.get_event_from_handle(burial_ref[0].ref)
             if event:
                 burial_date = self.__date_place(event)
-                if burial_date and process_dates(burial_date) and (process_dates(burial_date)[3:] not in process_dates(ddate)):
+                if (
+                    burial_date
+                    and process_dates(burial_date)
+                    and (process_dates(burial_date)[3:] not in process_dates(ddate))
+                ):
                     self.doc.start_paragraph(style)
                     self.doc.write_text(process_dates(burial_date))
                     self.doc.end_paragraph()
@@ -330,9 +372,7 @@ class Printinfo:
                 person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
             )
 
-            cust_event_map = {
-                "Separation": "sep."
-            }
+            cust_event_map = {"Separation": "sep."}
 
             if family.get_event_ref_list():
                 self.doc.start_paragraph(
@@ -344,9 +384,16 @@ class Printinfo:
                     event = self.database.get_event_from_handle(event_ref.ref)
                     text = self.__date_place(event)
                     text = (
-                        "div. (no recorded date)" if text == "div. "
-                        else "{} (no recorded dates)".format(cust_event_map.get(str(event.get_type()))) if text == "cust. "
-                        else "{}{}".format(cust_event_map.get(str(event.get_type())), text[4:]) if text.startswith("cust.")
+                        "div. (no recorded date)"
+                        if text == "div. "
+                        else "{} (no recorded dates)".format(
+                            cust_event_map.get(str(event.get_type()))
+                        )
+                        if text == "cust. "
+                        else "{}{}".format(
+                            cust_event_map.get(str(event.get_type())), text[4:]
+                        )
+                        if text.startswith("cust.")
                         else text
                     )
                     self.doc.start_paragraph(
@@ -354,7 +401,6 @@ class Printinfo:
                     )
                     self.doc.write_text(text)
                     self.doc.end_paragraph()
-
 
         # else:
         #     self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
@@ -510,7 +556,7 @@ class CompactDetailedDescendantReport(Report):
         """Filter for Modified Henry numbering"""
 
         def mhenry():
-            """convenience finction"""
+            """convenience function"""
             return str(index) if index < 10 else "(" + str(index) + ")"
 
         if (not person_handle) or (cur_gen > self.max_generations):
@@ -742,7 +788,7 @@ class CompactDetailedDescendantReport(Report):
                 self.doc.write_styled_note(
                     note.get_styledtext(),
                     note.get_format(),
-                    "CDDR-Family-Notes-Details"
+                    "CDDR-Family-Notes-Details",
                 )
 
         self.doc.start_table(
@@ -1031,9 +1077,12 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         para.set_font(font)
         para.set(lmargin=1.25)
         para.set_top_margin(0.0)
-        para.set_description(_("The style used for the first level spouse relationship details."))
-        default_style.add_paragraph_style("CDDR-First-Details-Spouse-Relationship-Deets", para)
-
+        para.set_description(
+            _("The style used for the first level spouse relationship details.")
+        )
+        default_style.add_paragraph_style(
+            "CDDR-First-Details-Spouse-Relationship-Deets", para
+        )
 
         font = FontStyle()
         font.set(size=8)
