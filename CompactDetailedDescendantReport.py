@@ -837,18 +837,25 @@ class CompactDetailedDescendantReport(Report):
         )
         self.doc.end_paragraph()
 
-        notelist = family.get_note_list()
-        if len(notelist) > 0:
-            self.doc.start_paragraph("CDDR-Family-Notes-Title")
-            self.doc.write_text(self._("Family notes:"))
-            self.doc.end_paragraph()
-            for notehandle in notelist:
-                note = self.database.get_note_from_handle(notehandle)
-                self.doc.write_styled_note(
-                    note.get_styledtext(),
-                    note.get_format(),
-                    "CDDR-Family-Notes-Details",
-                )
+        def write_notes(
+            family,
+            title_style="CDDR-Family-Notes-Title",
+            list_style="CDDR-Family-Notes-Details",
+        ):
+            notelist = family.get_note_list()
+            if len(notelist) > 0:
+                self.doc.start_paragraph(title_style)
+                self.doc.write_text(self._("Family notes:"))
+                self.doc.end_paragraph()
+                for notehandle in notelist:
+                    note = self.database.get_note_from_handle(notehandle)
+                    self.doc.write_styled_note(
+                        note.get_styledtext(),
+                        note.get_format(),
+                        list_style,
+                    )
+
+        write_notes(family)
 
         self.doc.start_table(
             format("child-table-{}".format(family.gramps_id)), "CDDR-ChildTable"
@@ -914,6 +921,12 @@ class CompactDetailedDescendantReport(Report):
                                 self.display_name_tweaker(person),
                             )
                             self.printed_people_refs[spouse_handle] = spouse_num
+
+                    write_notes(
+                        family,
+                        title_style="CDDR-First-Details",
+                        list_style="CDDR-First-Details",
+                    )
 
             self.doc.end_cell()
 
