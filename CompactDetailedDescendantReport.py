@@ -589,7 +589,11 @@ class CompactDetailedDescendantReport(Report):
 
     def apply_daboville_filter(self, person_handle, index, child_num, cur_gen=1):
         """Filter for d'Aboville numbering"""
-        if (not person_handle) or (cur_gen > self.max_generations):
+        if (
+            (not person_handle)
+            or (cur_gen > self.max_generations)
+            or self.map.get(index) == person_handle
+        ):
             return
 
         self.map[index] = person_handle
@@ -649,7 +653,6 @@ class CompactDetailedDescendantReport(Report):
             if first_num and last_num:
                 # We're related twice to the top person
                 # find the common number
-                double_fam = True
                 split_idx = None
                 for idx, (x, y) in enumerate(zip(first_num, last_num)):
                     if x == y:
@@ -673,9 +676,15 @@ class CompactDetailedDescendantReport(Report):
         self.dnumber[person_handle] = number
 
         index = 1
-        double_fam_index = 1
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
+            double_fam = False
+            double_fam_index = 1
+            mother_num = self.dnumber.get(family.get_mother_handle())
+            father_num = self.dnumber.get(family.get_father_handle())
+            if mother_num and father_num:
+                double_fam = True
+
             for child_ref in family.get_child_ref_list():
                 _ix = max(self.map)
                 self.apply_daboville_filter(
@@ -684,7 +693,7 @@ class CompactDetailedDescendantReport(Report):
                     index if not double_fam else double_fam_index,
                     cur_gen + 1,
                 )
-                index += 2 if not double_fam else 0
+                index += 1 if not double_fam else 0
                 double_fam_index += 1 if double_fam else 0
 
     def write_report(self):
