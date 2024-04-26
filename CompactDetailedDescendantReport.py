@@ -48,7 +48,6 @@
 # ------------------------------------------------------------------------
 from functools import partial
 
-
 # ------------------------------------------------------------------------
 #
 # pypi packages included with this addon
@@ -407,7 +406,9 @@ class Printinfo:
         #     self.doc.write_text(self._("= %(spouse)s") % {"spouse": self._("Unknown")})
         #     self.doc.end_paragraph()
 
-    def print_reference(self, person, display_num, style, is_spouse=False):
+    def print_reference(
+        self, person, display_num, style, is_spouse=False, is_individual_ref=False
+    ):
         """print the reference"""
         # Person and their family have already been printed so
         # print reference here
@@ -421,7 +422,11 @@ class Printinfo:
                     name,
                     "{} {}.".format(
                         display_num,
-                        ("for details" if not is_spouse else "for family details"),
+                        (
+                            "for details"
+                            if (is_individual_ref or not is_spouse)
+                            else "for family details"
+                        ),
                     ),
                 ),
                 mark,
@@ -596,6 +601,7 @@ class CompactDetailedDescendantReport(Report):
 
         person = self._db.get_person_from_handle(person_handle)
 
+        double_fam = False
         families_as_child = [
             self._db.get_family_from_handle(x)
             for x in person.get_parent_family_handle_list()
@@ -605,6 +611,33 @@ class CompactDetailedDescendantReport(Report):
         for fam_idx, family_as_child in enumerate(families_as_child):
             mother_num = self.dnumber.get(family_as_child.get_mother_handle())
             father_num = self.dnumber.get(family_as_child.get_father_handle())
+
+            if not mother_num and not father_num:
+                first_num, last_num = mother_num, father_num
+
+            elif mother_num and not father_num:
+                first_num, last_num = mother_num, father_num
+
+            elif father_num and not mother_num:
+                first_num, last_num = father_num, mother_num
+
+            elif len(mother_num.split(".")) == len(father_num.split(".")):
+                for mum_digit, dad_digit in zip(
+                    mother_num.split("."), father_num.split(".")
+                ):
+                    if int(mum_digit) < int(dad_digit):
+                        first_num, last_num = mother_num, father_num
+                        break
+                    elif int(mum_digit) > int(dad_digit):
+                        first_num, last_num = father_num, mother_num
+                        break
+
+            else:
+                first_num, last_num = sorted(
+                    [mother_num, father_num],
+                    key=lambda x: len(x.split(".")),
+                )
+
             number += (
                 ""
                 if is_not_child_of_multiple_fams
@@ -612,29 +645,24 @@ class CompactDetailedDescendantReport(Report):
                     ", " if fam_idx > 0 else "", chr(ord("a") + (fam_idx % 26))
                 )
             )
-            if mother_num and father_num:
+
+            if first_num and last_num:
                 # We're related twice to the top person
                 # find the common number
+                double_fam = True
                 split_idx = None
-                for idx, (x, y) in enumerate(zip(mother_num, father_num)):
+                for idx, (x, y) in enumerate(zip(first_num, last_num)):
                     if x == y:
                         number += x
                     else:
                         split_idx = idx
                         break
                 number += "({}).{}".format(
-                    "|".join(
-                        sorted(
-                            [mother_num[split_idx:], father_num[split_idx:]],
-                            key=lambda x: int(x.split(".")[-1]),
-                        )
-                    ),
+                    "|".join([first_num[split_idx:], last_num[split_idx:]]),
                     child_num,
                 )
-            elif mother_num:
-                number += "{}.{}".format(mother_num, child_num)
-            elif father_num:
-                number += "{}.{}".format(father_num, child_num)
+            elif first_num:
+                number += "{}.{}".format(first_num, child_num)
             elif cur_gen == 1:
                 # raise ReportError("{}{}{}".format(number, mother_num, father_num))
                 number += child_num
@@ -645,12 +673,19 @@ class CompactDetailedDescendantReport(Report):
         self.dnumber[person_handle] = number
 
         index = 1
+        double_fam_index = 1
         for family_handle in person.get_family_handle_list():
             family = self._db.get_family_from_handle(family_handle)
             for child_ref in family.get_child_ref_list():
                 _ix = max(self.map)
-                self.apply_daboville_filter(child_ref.ref, _ix + 1, index, cur_gen + 1)
-                index += 1
+                self.apply_daboville_filter(
+                    child_ref.ref,
+                    _ix + 1,
+                    index if not double_fam else double_fam_index,
+                    cur_gen + 1,
+                )
+                index += 2 if not double_fam else 0
+                double_fam_index += 1 if double_fam else 0
 
     def write_report(self):
         """
@@ -734,19 +769,28 @@ class CompactDetailedDescendantReport(Report):
 
                 if spouse_handle in self.printed_people_refs:
                     # Just print a reference
-                    spouse = self.database.get_person_from_handle(spouse_handle)
                     self.print_people.print_reference(
-                        spouse,
+                        self.database.get_person_from_handle(spouse_handle),
                         self.printed_people_refs[spouse_handle],
                         "CDDR-First-Entry-Spouse",
                         is_spouse=True,
                     )
                 else:
-                    self.print_people.print_spouse(spouse_handle, family)
+                    if self.dnumber.get(spouse_handle):
+                        self.print_people.print_reference(
+                            self.database.get_person_from_handle(spouse_handle),
+                            self.dnumber.get(spouse_handle),
+                            "CDDR-First-Entry-Spouse",
+                            is_spouse=True,
+                            is_individual_ref=True,
+                        )
+                    else:
+                        self.print_people.print_spouse(spouse_handle, family)
 
                     if spouse_handle and spouse_handle not in self.dnumber:
                         spouse_num = "= of: {} {}".format(
-                            self.dnumber[person_handle], self.display_name_tweaker(person)
+                            self.dnumber[person_handle],
+                            self.display_name_tweaker(person),
                         )
                         self.printed_people_refs[spouse_handle] = spouse_num
 
@@ -1059,6 +1103,7 @@ class CompactDetailedDescendantOptions(MenuReportOptions):
         default_style.add_paragraph_style("CDDR-First-Details", para)
 
         para = ParagraphStyle()
+        font.set(size=12)
         para.set(lmargin=0.75)
         para.set_top_margin(0.15)
         para.set_description(_("The style used for first level spouse headings."))
