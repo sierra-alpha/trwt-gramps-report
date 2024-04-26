@@ -210,6 +210,25 @@ class Printinfo:
 
         return age
 
+    def process_dates(self, date):
+        try:
+            gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
+            gdate = gdate.strftime(" %Y")
+        except ParserError:
+            gdate = ""
+            place_split = date.rsplit("- ", maxsplit=1)
+            if len(place_split) <= 1:
+                return None
+            gdate_text = [
+                "{}.".format(date.split(".")[0]),
+                place_split[-1],
+            ]
+
+        gdatestring = "{}{} {}".format(
+            gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
+        )
+        return gdatestring
+
     def print_details(self, person, style):
         """print descriptive details for a person"""
 
@@ -248,38 +267,19 @@ class Printinfo:
                 )
             self.doc.end_paragraph()
 
-        def process_dates(date):
-            try:
-                gdate, gdate_text = parse(date, fuzzy_with_tokens=True)
-                gdate = gdate.strftime(" %Y")
-            except ParserError:
-                gdate = ""
-                place_split = date.rsplit("- ", maxsplit=1)
-                if len(place_split) <= 1:
-                    return None
-                gdate_text = [
-                    "{}.".format(date.split(".")[0]),
-                    place_split[-1],
-                ]
-
-            gdatestring = "{}{} {}".format(
-                gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
-            )
-            return gdatestring
-
         bdate = self.__date_place(get_birth_or_fallback(self.database, person))
-        if bdate and process_dates(bdate):
+        if bdate and self.process_dates(bdate):
             self.doc.start_paragraph(style)
-            self.doc.write_text(process_dates(bdate))
+            self.doc.write_text(self.process_dates(bdate))
             self.doc.end_paragraph()
 
         ddate = self.__date_place(get_death_or_fallback(self.database, person))
-        if ddate and process_dates(ddate):
+        if ddate and self.process_dates(ddate):
             age = self.__get_age_at_death(person)
             self.doc.start_paragraph(style)
             self.doc.write_text(
                 "{}{}".format(
-                    process_dates(ddate),
+                    self.process_dates(ddate),
                     " (Age at death: {})".format(age) if age else "",
                 )
             )
@@ -296,11 +296,14 @@ class Printinfo:
                 burial_date = self.__date_place(event)
                 if (
                     burial_date
-                    and process_dates(burial_date)
-                    and (process_dates(burial_date)[3:] not in process_dates(ddate))
+                    and self.process_dates(burial_date)
+                    and (
+                        self.process_dates(burial_date)[3:]
+                        not in self.process_dates(ddate)
+                    )
                 ):
                     self.doc.start_paragraph(style)
-                    self.doc.write_text(process_dates(burial_date))
+                    self.doc.write_text(self.process_dates(burial_date))
                     self.doc.end_paragraph()
 
         notelist = person.get_note_list()
@@ -385,7 +388,7 @@ class Printinfo:
                     text = (
                         "div. (no recorded date)"
                         if text == "div. "
-                        else "{} (no recorded dates)".format(
+                        else "{} (no recorded date)".format(
                             cust_event_map.get(str(event.get_type()))
                         )
                         if text == "cust. "
@@ -393,13 +396,14 @@ class Printinfo:
                             cust_event_map.get(str(event.get_type())), text[4:]
                         )
                         if text.startswith("cust.")
-                        else text
+                        else self.process_dates(text)
                     )
-                    self.doc.start_paragraph(
-                        "CDDR-First-Details-Spouse-Relationship-Deets",
-                    )
-                    self.doc.write_text(text)
-                    self.doc.end_paragraph()
+                    if text:
+                        self.doc.start_paragraph(
+                            "CDDR-First-Details-Spouse-Relationship-Deets",
+                        )
+                        self.doc.write_text(text)
+                        self.doc.end_paragraph()
 
         # else:
         #     self.doc.start_paragraph(person_style or "CDDR-First-Entry-Spouse")
