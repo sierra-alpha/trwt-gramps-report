@@ -236,8 +236,9 @@ class Printinfo:
             self.doc.start_paragraph(style, "aka. ")
             alt_names = person.get_alternate_names()
             for idx, alt_name in enumerate(alt_names):
-                name = "{}{}{}".format(
-                    alt_name.get_upper_name(),
+                name = "{}{}{}{}".format(
+                    "{}, ".format(alt_name.get_surname().upper()) if alt_name.get_surname() else "",
+                    "{}".format(alt_name.first_name) if alt_name.first_name else "",
                     " ({}{}{})".format(
                         alt_name.get_nick_name(),
                         ", "
