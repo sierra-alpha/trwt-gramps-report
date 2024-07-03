@@ -386,6 +386,7 @@ class Printinfo:
                 spouse_family=family,
                 person_style=person_style or "CDDR-First-Entry-Spouse",
                 person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
+                print_self_details=True,
             )
 
             cust_event_map = {"Separation": "sep."}
@@ -905,26 +906,14 @@ class CompactDetailedDescendantReport(Report):
             self.doc.end_cell()
 
             self.doc.start_cell("CDDR-ChildTableCell")
-            # if prefix:
-            #     self.doc.start_paragraph("CDDR-ChildListSimple")
-            #     # self.doc.write_text("%s" % child_name, child_mark)
-            #     self.print_people.print_person(self._db.get_person_from_handle(child_handle), print_self_details=True)
-            #     self.doc.end_paragraph()
-            # else:
             self.print_people.print_person(
                 child,
                 main_entry=False,
                 person_deets_style="CDDR-First-Details",
                 print_self_details=True,
             )
-            if prefix:
-                self.doc.start_paragraph("CDDR-First-Details")
-                self.doc.write_text(
-                    "See Family entry at {}".format(str(self.dnumber[child_handle]))
-                )
-                self.doc.end_paragraph()
 
-            else:
+            if not prefix:
                 for family_handle in child.get_family_handle_list():
 
                     family = self._db.get_family_from_handle(family_handle)
