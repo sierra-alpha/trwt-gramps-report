@@ -327,10 +327,11 @@ class Printinfo:
     def print_person(
         self,
         person,
+        first_gen=False,
         main_entry=True,
-        spouse_family=None,
-        person_style=None,
         person_deets_style=None,
+        person_style=None,
+        spouse_family=None,
     ):
         """print the person"""
 
@@ -356,11 +357,14 @@ class Printinfo:
         )
         self.doc.end_bold() if main_entry else None
         self.doc.end_paragraph()
-        self.print_details(
-            person,
-            person_deets_style
-            or ("CDDR-First-Details" if main_entry else "CDDR-ChildListSimple"),
-        )
+
+        # if we are the first gen we need to print our details.
+        if first_gen:
+            self.print_details(
+                person,
+                person_deets_style
+                or ("CDDR-First-Details" if main_entry else "CDDR-ChildListSimple"),
+            )
 
     def print_spouse(
         self, spouse_handle, family, person_style=None, person_deets_style=None
@@ -755,9 +759,69 @@ class CompactDetailedDescendantReport(Report):
             for key in gen_keys:
                 person_handle = self.map[key]
                 self.gen_handles[person_handle] = key
-                self.write_person(key)
+                self.write_person(key, first_gen = not generation)
 
-    def write_person(self, key):
+    # def write_person(self, key):
+    #     """Output birth, death, parentage, marriage information"""
+
+    #     person_handle = self.map[key]
+    #     person = self._db.get_person_from_handle(person_handle)
+    #     person_dnum = self.dnumber[person_handle]
+
+    #     if person_dnum != "1" and not any(
+    #         y
+    #         for x in person.get_family_handle_list()
+    #         for y in self._db.get_family_from_handle(x).get_child_ref_list()
+    #     ):
+    #         # If we have no descendants and we're not the first person then
+    #         # we'll be already printed elsewhere so we can skip
+    #         #
+    #         return
+
+    #     if person_handle not in self.printed_people_refs:
+    #         self.printed_people_refs[person_handle] = self.dnumber[person_handle]
+
+    #         self.print_people.print_person(person)
+
+    #         for family_handle in person.get_family_handle_list():
+    #             family = self._db.get_family_from_handle(family_handle)
+    #             spouse_handle = utils.find_spouse(person, family)
+
+    #             if spouse_handle in self.printed_people_refs:
+    #                 # Just print a reference
+    #                 self.print_people.print_reference(
+    #                     self.database.get_person_from_handle(spouse_handle),
+    #                     self.printed_people_refs[spouse_handle],
+    #                     "CDDR-First-Entry-Spouse",
+    #                     is_spouse=True,
+    #                 )
+    #             else:
+    #                 if self.dnumber.get(spouse_handle):
+    #                     self.print_people.print_reference(
+    #                         self.database.get_person_from_handle(spouse_handle),
+    #                         self.dnumber.get(spouse_handle),
+    #                         "CDDR-First-Entry-Spouse",
+    #                         is_spouse=True,
+    #                         is_individual_ref=True,
+    #                     )
+    #                 else:
+    #                     self.print_people.print_spouse(spouse_handle, family)
+
+    #                 if spouse_handle and spouse_handle not in self.dnumber:
+    #                     spouse_num = "= of: {} {}".format(
+    #                         self.dnumber[person_handle],
+    #                         self.display_name_tweaker(person),
+    #                     )
+    #                     self.printed_people_refs[spouse_handle] = spouse_num
+
+    #                 # If there's family notes but no children we need to show the notes here
+    #                 if not family.get_child_ref_list():
+    #                     self.write_notes(family)
+
+    #                 if self.listchildren:
+    #                     self.__write_children(family, person)
+
+    def write_person(self, key, first_gen=False):
         """Output birth, death, parentage, marriage information"""
 
         person_handle = self.map[key]
@@ -777,7 +841,7 @@ class CompactDetailedDescendantReport(Report):
         if person_handle not in self.printed_people_refs:
             self.printed_people_refs[person_handle] = self.dnumber[person_handle]
 
-            self.print_people.print_person(person)
+            self.print_people.print_person(person, first_gen)
 
             for family_handle in person.get_family_handle_list():
                 family = self._db.get_family_from_handle(family_handle)
