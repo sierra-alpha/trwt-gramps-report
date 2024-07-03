@@ -227,7 +227,7 @@ class Printinfo:
         gdatestring = "{}{} {}".format(
             gdate_text[0], gdate, "" if len(gdate_text) <= 1 else gdate_text[-1]
         )
-        return gdatestring
+        return gdatestring.strip()
 
     def print_details(self, person, style):
         """print descriptive details for a person"""
@@ -270,29 +270,19 @@ class Printinfo:
                 )
             self.doc.end_paragraph()
 
-        bdate = self.__date_place(get_birth_or_fallback(self.database, person))
-        if bdate and self.process_dates(bdate):
-            self.doc.start_paragraph(style)
-            self.doc.write_text(self.process_dates(bdate))
-            self.doc.end_paragraph()
-
-        ddate = self.__date_place(get_death_or_fallback(self.database, person))
-        if ddate and self.process_dates(ddate):
-            age = self.__get_age_at_death(person)
-            self.doc.start_paragraph(style)
-            self.doc.write_text(
-                "{}{}".format(
-                    self.process_dates(ddate),
-                    " (Age at death: {})".format(age) if age else "",
-                )
-            )
-            self.doc.end_paragraph()
+        bdate = self.process_dates(
+            self.__date_place(get_birth_or_fallback(self.database, person))
+        )
+        ddate = self.process_dates(
+            self.__date_place(get_death_or_fallback(self.database, person))
+        )
 
         burial_ref = [
             event
             for event in person.get_event_ref_list()
             if self.database.get_event_from_handle(event.ref).get_type().is_burial()
         ]
+        bur_date = None
         if burial_ref:
             event = self.database.get_event_from_handle(burial_ref[0].ref)
             if event:
@@ -300,19 +290,36 @@ class Printinfo:
                 if (
                     burial_date
                     and self.process_dates(burial_date)
-                    and (
-                        self.process_dates(burial_date)[3:]
-                        not in self.process_dates(ddate)
-                    )
+                    and (self.process_dates(burial_date)[3:] not in ddate)
                 ):
-                    self.doc.start_paragraph(style)
-                    self.doc.write_text(self.process_dates(burial_date))
-                    self.doc.end_paragraph()
+                    bur_date = self.process_dates(burial_date)
+
+        if bdate or ddate or burial_ref:
+            self.doc.start_paragraph(style)
+            if bdate:
+                self.doc.write_text(bdate)
+                if ddate or bur_date:
+                    self.doc.write_text(" | ")
+
+            if ddate:
+                age = self.__get_age_at_death(person)
+                self.doc.write_text(
+                    "{}{}".format(
+                        ddate,
+                        " (Age at death: {})".format(age) if age else "",
+                    )
+                )
+                if bur_date:
+                    self.doc.write_text(" | ")
+
+            if bur_date:
+                self.doc.write_text(bur_date)
+
+            self.doc.end_paragraph()
 
         notelist = person.get_note_list()
         if len(notelist) > 0:
             self.doc.start_paragraph(style)
-            # feature request 2356: avoid genitive form
             self.doc.write_text(self._("Notes:"))
             self.doc.end_paragraph()
             for notehandle in notelist:
@@ -327,10 +334,10 @@ class Printinfo:
     def print_person(
         self,
         person,
-        first_gen=False,
         main_entry=True,
         person_deets_style=None,
         person_style=None,
+        print_self_details=False,
         spouse_family=None,
     ):
         """print the person"""
@@ -359,7 +366,7 @@ class Printinfo:
         self.doc.end_paragraph()
 
         # if we are the first gen we need to print our details.
-        if first_gen:
+        if print_self_details:
             self.print_details(
                 person,
                 person_deets_style
@@ -759,69 +766,9 @@ class CompactDetailedDescendantReport(Report):
             for key in gen_keys:
                 person_handle = self.map[key]
                 self.gen_handles[person_handle] = key
-                self.write_person(key, first_gen = not generation)
+                self.write_person(key, is_first_gen=generation == 0)
 
-    # def write_person(self, key):
-    #     """Output birth, death, parentage, marriage information"""
-
-    #     person_handle = self.map[key]
-    #     person = self._db.get_person_from_handle(person_handle)
-    #     person_dnum = self.dnumber[person_handle]
-
-    #     if person_dnum != "1" and not any(
-    #         y
-    #         for x in person.get_family_handle_list()
-    #         for y in self._db.get_family_from_handle(x).get_child_ref_list()
-    #     ):
-    #         # If we have no descendants and we're not the first person then
-    #         # we'll be already printed elsewhere so we can skip
-    #         #
-    #         return
-
-    #     if person_handle not in self.printed_people_refs:
-    #         self.printed_people_refs[person_handle] = self.dnumber[person_handle]
-
-    #         self.print_people.print_person(person)
-
-    #         for family_handle in person.get_family_handle_list():
-    #             family = self._db.get_family_from_handle(family_handle)
-    #             spouse_handle = utils.find_spouse(person, family)
-
-    #             if spouse_handle in self.printed_people_refs:
-    #                 # Just print a reference
-    #                 self.print_people.print_reference(
-    #                     self.database.get_person_from_handle(spouse_handle),
-    #                     self.printed_people_refs[spouse_handle],
-    #                     "CDDR-First-Entry-Spouse",
-    #                     is_spouse=True,
-    #                 )
-    #             else:
-    #                 if self.dnumber.get(spouse_handle):
-    #                     self.print_people.print_reference(
-    #                         self.database.get_person_from_handle(spouse_handle),
-    #                         self.dnumber.get(spouse_handle),
-    #                         "CDDR-First-Entry-Spouse",
-    #                         is_spouse=True,
-    #                         is_individual_ref=True,
-    #                     )
-    #                 else:
-    #                     self.print_people.print_spouse(spouse_handle, family)
-
-    #                 if spouse_handle and spouse_handle not in self.dnumber:
-    #                     spouse_num = "= of: {} {}".format(
-    #                         self.dnumber[person_handle],
-    #                         self.display_name_tweaker(person),
-    #                     )
-    #                     self.printed_people_refs[spouse_handle] = spouse_num
-
-    #                 # If there's family notes but no children we need to show the notes here
-    #                 if not family.get_child_ref_list():
-    #                     self.write_notes(family)
-
-    #                 if self.listchildren:
-    #                     self.__write_children(family, person)
-
-    def write_person(self, key, first_gen=False):
+    def write_person(self, key, is_first_gen=False):
         """Output birth, death, parentage, marriage information"""
 
         person_handle = self.map[key]
@@ -841,7 +788,7 @@ class CompactDetailedDescendantReport(Report):
         if person_handle not in self.printed_people_refs:
             self.printed_people_refs[person_handle] = self.dnumber[person_handle]
 
-            self.print_people.print_person(person, first_gen)
+            self.print_people.print_person(person, print_self_details=is_first_gen)
 
             for family_handle in person.get_family_handle_list():
                 family = self._db.get_family_from_handle(family_handle)
@@ -958,14 +905,26 @@ class CompactDetailedDescendantReport(Report):
             self.doc.end_cell()
 
             self.doc.start_cell("CDDR-ChildTableCell")
+            # if prefix:
+            #     self.doc.start_paragraph("CDDR-ChildListSimple")
+            #     # self.doc.write_text("%s" % child_name, child_mark)
+            #     self.print_people.print_person(self._db.get_person_from_handle(child_handle), print_self_details=True)
+            #     self.doc.end_paragraph()
+            # else:
+            self.print_people.print_person(
+                child,
+                main_entry=False,
+                person_deets_style="CDDR-First-Details",
+                print_self_details=True,
+            )
             if prefix:
-                self.doc.start_paragraph("CDDR-ChildListSimple")
-                self.doc.write_text("%s" % child_name, child_mark)
-                self.doc.end_paragraph()
-            else:
-                self.print_people.print_person(
-                    child, main_entry=False, person_deets_style="CDDR-First-Details"
+                self.doc.start_paragraph("CDDR-First-Details")
+                self.doc.write_text(
+                    "See Family entry at {}".format(str(self.dnumber[child_handle]))
                 )
+                self.doc.end_paragraph()
+
+            else:
                 for family_handle in child.get_family_handle_list():
 
                     family = self._db.get_family_from_handle(family_handle)
