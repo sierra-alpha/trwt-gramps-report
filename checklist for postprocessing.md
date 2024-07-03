@@ -1,3 +1,7 @@
+# Gramps settings
+
+Default Name format: SURNAME, Given (Call, Nickname) Suffix
+
 # Post Processing Steps
 
  - [ ] Title Page Image Formatting
