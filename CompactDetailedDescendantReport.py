@@ -260,9 +260,7 @@ class Printinfo:
                 self.doc.write_text(
                     "{}{}".format(
                         " or "
-                        if len(alt_names) == idx + 1 and idx > 0
-                        else ", "
-                        if idx > 1
+                        if idx > 0
                         else "",
                         name,
                     ),
