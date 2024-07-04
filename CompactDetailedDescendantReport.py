@@ -513,12 +513,13 @@ class CompactDetailedDescendantReport(Report):
         self.gen_keys = []
         self.dnumber = {}
 
+        center_person_initial = self.center_person.primary_name.first_name[0].upper()
         if self.numbering == "Henry":
-            self.apply_henry_filter(self.center_person.get_handle(), 1, "1")
+            self.apply_henry_filter(self.center_person.get_handle(), 1, center_person_initial)
         elif self.numbering == "Modified Henry":
-            self.apply_mhenry_filter(self.center_person.get_handle(), 1, "1")
+            self.apply_mhenry_filter(self.center_person.get_handle(), 1, center_person_initial)
         elif self.numbering == "d'Aboville":
-            self.apply_daboville_filter(self.center_person.get_handle(), 1, "1")
+            self.apply_daboville_filter(self.center_person.get_handle(), 1, center_person_initial)
         else:
             raise AttributeError("no such numbering: '%s'" % self.numbering)
 
@@ -646,7 +647,9 @@ class CompactDetailedDescendantReport(Report):
                 for mum_digit, dad_digit in zip(
                     mother_num.split("."), father_num.split(".")
                 ):
-                    if int(mum_digit) < int(dad_digit):
+                    if mum_digit == dad_digit:
+                        continue
+                    elif int(mum_digit) < int(dad_digit):
                         first_num, last_num = mother_num, father_num
                         break
                     elif int(mum_digit) > int(dad_digit):
