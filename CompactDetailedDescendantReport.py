@@ -259,9 +259,7 @@ class Printinfo:
                 )
                 self.doc.write_text(
                     "{}{}".format(
-                        " or "
-                        if idx > 0
-                        else "",
+                        " or " if idx > 0 else "",
                         name,
                     ),
                     mark,
@@ -352,9 +350,7 @@ class Printinfo:
         self.doc.write_text(
             "= {}{}".format(
                 display_name,
-                ". See reference {} for their individual record".format(display_num)
-                if display_num
-                else "",
+                ". See {} for details".format(display_num) if display_num else "",
             )
             if spouse_family
             else display_name,
@@ -375,7 +371,7 @@ class Printinfo:
         self, spouse_handle, family, person_style=None, person_deets_style=None
     ):
         """print the spouse"""
-        # Currently print_spouses is the same for all numbering systems.
+        display_num = self.dnumber.get(spouse_handle)
         if spouse_handle:
             spouse = self.database.get_person_from_handle(spouse_handle)
             self.print_person(
@@ -384,7 +380,7 @@ class Printinfo:
                 spouse_family=family,
                 person_style=person_style or "CDDR-First-Entry-Spouse",
                 person_deets_style=person_deets_style or "CDDR-First-Details-Spouse",
-                print_self_details=True,
+                print_self_details=not display_num, # only if we're not in the book elsewhere.
             )
 
             cust_event_map = {"Separation": "sep."}
@@ -515,11 +511,17 @@ class CompactDetailedDescendantReport(Report):
 
         center_person_initial = self.center_person.primary_name.first_name[0].upper()
         if self.numbering == "Henry":
-            self.apply_henry_filter(self.center_person.get_handle(), 1, center_person_initial)
+            self.apply_henry_filter(
+                self.center_person.get_handle(), 1, center_person_initial
+            )
         elif self.numbering == "Modified Henry":
-            self.apply_mhenry_filter(self.center_person.get_handle(), 1, center_person_initial)
+            self.apply_mhenry_filter(
+                self.center_person.get_handle(), 1, center_person_initial
+            )
         elif self.numbering == "d'Aboville":
-            self.apply_daboville_filter(self.center_person.get_handle(), 1, center_person_initial)
+            self.apply_daboville_filter(
+                self.center_person.get_handle(), 1, center_person_initial
+            )
         else:
             raise AttributeError("no such numbering: '%s'" % self.numbering)
 
